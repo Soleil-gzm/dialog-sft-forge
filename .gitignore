@@ -72,6 +72,7 @@ scripts_general/testing/
 json_handle.ipynb/
 README.md/
 doc/
+.trae/
 # 如需保留示例模板，用下面写法（注意父目录不要整体忽略）：
 # configs/*
 # !configs/examples/
