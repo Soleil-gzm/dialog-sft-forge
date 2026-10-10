@@ -1,0 +1,94 @@
+# ============================================================
+# .gitignore — dialog-sft-forge
+# ============================================================
+
+# ---------- 环境变量与密钥 ----------
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+
+# ---------- Python 缓存 / 打包产物 ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+pip-wheel-metadata/
+
+# ---------- 测试与覆盖率 ----------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+coverage.xml
+*.cover
+
+# ---------- IDE / 编辑器 ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- 日志与临时文件 ----------
+logs/
+*.log
+*.tmp
+*.bak
+*.cache
+
+# ---------- 项目数据与生成产物 ----------
+datas/
+output/
+output1/
+output_v1/
+intermediate/
+tool_analysis/
+config_task/
+new_case/
+prob_generator*
+case_generate*
+combinations*.json
+
+# ---------- 本地 / 敏感配置 ----------
+# configs/ 如果是公开模板，不要忽略；
+# 如果是公司业务敏感配置，取消下面这行注释：
+# configs/
+config_templates/
+scripts_general/case_generator/
+scripts_general/excel2prob/
+scripts_general/testing/
+json_handle.ipynb/
+README.md/
+doc/
+# 如需保留示例模板，用下面写法（注意父目录不要整体忽略）：
+# configs/*
+# !configs/examples/
+# !configs/examples/**
+# !configs/*.example.yaml
+# !configs/*.template.yaml
+
+# ---------- 临时测试脚本 ----------
+# scripts_test/ 如果是正式测试，建议改名 tests/ 并提交；
+# 如果是个人临时脚本，取消下面这行注释：
+# scripts_test/
+
+# ============================================================
+# 以下文件通常应提交，不要忽略：
+# pytest.ini
+# requirements.txt
+# README.md
+# LICENSE
+# .gitignore
+# ============================================================
