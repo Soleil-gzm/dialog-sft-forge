@@ -29,12 +29,13 @@ license: mit
 ```bash
 pip install -r requirements.txt
 
-# 1) 生成 demo 虚拟数据（话术模板 / 概率矩阵 / 案例文件，固定种子可复现）
+# 1) 生成 demo 虚拟数据（固定种子可复现）：
+#    15 模块话术模板 / 概率矩阵（由模块图自动派生）/ 500 个案例 / 500 个配对 system prompt
 python demo/generate_demo_data.py
 
-# 2) 批量合成对话（默认使用 demo/demo_config.yaml）
+# 2) 批量合成 5000 条对话（split 加载器：案例与 prompt 分离）
 python scripts_general/main.py -c demo/demo_config.yaml
-# 输出：output/<task_name>_<n>_<seed>/*.json
+# 输出：output/<task_name>_5000_<seed>/*.json
 
 # 3) 启动 Gradio 演示界面
 python demo/app.py

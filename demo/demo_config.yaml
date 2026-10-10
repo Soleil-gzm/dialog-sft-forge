@@ -4,29 +4,38 @@ start_module: 身份确认
 output_dir: output
 paths_cache_dir: paths_demo
 paths_cache: output/paths_demo/all_paths_{num_paths}_{seed}.json
-num_paths: 5
-num_dialogues: 5
-num_paths_to_generate: 5
+num_paths: 5000
+num_dialogues: 5000
+num_paths_to_generate: 5000
 random_seed: 42
-checkpoint_interval: 100
+checkpoint_interval: 1000
 prob_path: demo/data/prob.xlsx
 excel_path: demo/data/话术模板.xlsx
 case_loader:
-  type: default
-cases_dir: demo/data/cases
+  type: split
+  replace_dir: demo/data/cases
+  system_dir: demo/data/prompts
 a_set:
 - 流失风险
+- 投诉处理
 b_set:
 - 身份确认
+- 身份核实
 - 积分告知
+- 权益介绍
+- 活动推荐
 - 无意愿
+- 犹豫跟进
 - 承诺到店
+- 预约到店
 terminal_modules:
 - 已到店
+- 明确拒绝
+- 通话结束
 self_loop_modules:
   语音留言: 0.05
 insert_nodes:
-- 无意愿
+- 活动推荐
 - 流失风险
 pressure_sheet_name: 链接促销话术
 pressure_prob: 0.3
@@ -39,7 +48,7 @@ pressure_max_total: 3
 pressure_strategy:
   type: normalized
 module_pressure_weights:
-  无意愿: 1.2
+  活动推荐: 1.2
   流失风险: 1.0
 flexible_stop_prob: 0.3
 goodbye_termination_prob: 0.7

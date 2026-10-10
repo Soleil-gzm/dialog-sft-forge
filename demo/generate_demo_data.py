@@ -1,31 +1,35 @@
 #!/usr/bin/env python3
 """
-奶茶店会员回访 Demo 虚拟数据生成脚本
+奶茶店会员回访 Demo 虚拟数据生成脚本（5000 条规模）
 
-生成完全虚构、固定种子、可复现的 demo 数据：
-  - demo/data/话术模板.xlsx   (7 模块 sheet + 链接促销话术 sheet, 8 列)
-  - demo/data/prob.xlsx       (7×7 整数百分比概率矩阵)
-  - demo/data/cases/case_001~003.txt (奶茶店会员案例)
-  - demo/demo_config.yaml     (demo 配置)
+从单一模块图与话术定义出发，自动产出完整数据集：
+  - demo/data/话术模板.xlsx   (15 个模块 sheet + 链接促销话术 sheet，8 列)
+  - demo/data/prob.xlsx       (由模块图 EDGES 自动派生的 15×15 概率矩阵)
+  - demo/data/cases/          (500 个案例，- 字段：值 逐行格式)
+  - demo/data/prompts/        (500 个与案例一一对应的 system prompt)
+  - demo/demo_config.yaml     (split 加载器，5000 条对话规模)
+
+所有数据均为虚构，固定种子 SEED=42，可复现。
 
 运行方式：
   python demo/generate_demo_data.py
 """
 
 import os
+import random
+from typing import Dict, List, Optional
 
-import numpy as np
 import pandas as pd
 import yaml
 
 # 固定种子，保证可复现
 SEED = 42
-np.random.seed(SEED)
 
 # 目录路径（基于本文件位置，不依赖 cwd）
 DEMO_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(DEMO_DIR, "data")
 CASES_DIR = os.path.join(DATA_DIR, "cases")
+PROMPTS_DIR = os.path.join(DATA_DIR, "prompts")
 
 # 8 列结构（与 core/data/data_loader.py keep_cols 一致）
 COLUMNS = [
@@ -39,324 +43,440 @@ COLUMNS = [
     "是否再见",
 ]
 
-# 模块名（与 prob 表行/列名一致）
+# ============================================================
+# 1. 模块图定义（prob 矩阵的唯一来源）
+# ============================================================
+
 MODULES = [
-    "身份确认",
-    "积分告知",
-    "无意愿",
-    "流失风险",
-    "承诺到店",
-    "已到店",
-    "语音留言",
+    "身份确认",   # start, b
+    "身份核实",   # b
+    "积分告知",   # b
+    "权益介绍",   # b
+    "活动推荐",   # b, insert
+    "无意愿",     # b
+    "犹豫跟进",   # b
+    "承诺到店",   # b, 再见
+    "预约到店",   # b, 再见
+    "流失风险",   # a, insert
+    "投诉处理",   # a
+    "语音留言",   # self-loop
+    "已到店",     # terminal
+    "明确拒绝",   # terminal
+    "通话结束",   # terminal
 ]
 
+A_SET = ["流失风险", "投诉处理"]
+B_SET = [
+    "身份确认", "身份核实", "积分告知", "权益介绍", "活动推荐",
+    "无意愿", "犹豫跟进", "承诺到店", "预约到店",
+]
+TERMINALS = ["已到店", "明确拒绝", "通话结束"]
+SELF_LOOP = {"语音留言": 0.05}
+INSERT_NODES = ["活动推荐", "流失风险"]
+
+# 模块转移图：from -> {to: 权重（整数百分比）}；终端/自循环节点行全 0
+EDGES: Dict[str, Dict[str, int]] = {
+    "身份确认": {"身份核实": 55, "积分告知": 20, "活动推荐": 10, "流失风险": 5, "语音留言": 10},
+    "身份核实": {"积分告知": 50, "权益介绍": 20, "活动推荐": 15, "无意愿": 10, "投诉处理": 5},
+    "积分告知": {"权益介绍": 25, "活动推荐": 20, "无意愿": 25, "犹豫跟进": 15, "承诺到店": 10, "通话结束": 5},
+    "权益介绍": {"活动推荐": 30, "犹豫跟进": 20, "无意愿": 15, "承诺到店": 20, "预约到店": 10, "通话结束": 5},
+    "活动推荐": {"无意愿": 20, "犹豫跟进": 20, "承诺到店": 25, "预约到店": 15, "流失风险": 10, "已到店": 10},
+    "无意愿": {"犹豫跟进": 25, "活动推荐": 20, "流失风险": 20, "承诺到店": 10, "明确拒绝": 15, "通话结束": 10},
+    "犹豫跟进": {"活动推荐": 20, "承诺到店": 30, "预约到店": 20, "无意愿": 10, "流失风险": 10, "通话结束": 10},
+    "承诺到店": {"已到店": 60, "预约到店": 15, "活动推荐": 10, "通话结束": 15},
+    "预约到店": {"已到店": 70, "权益介绍": 10, "通话结束": 20},
+    "流失风险": {"投诉处理": 20, "活动推荐": 30, "承诺到店": 20, "无意愿": 10, "明确拒绝": 10, "通话结束": 10},
+    "投诉处理": {"活动推荐": 30, "承诺到店": 20, "犹豫跟进": 15, "明确拒绝": 15, "通话结束": 20},
+    "语音留言": {},
+    "已到店": {},
+    "明确拒绝": {},
+    "通话结束": {},
+}
+
+
+def _R(uid, parent, repeat, human, assistant, cond="", flex=0, bye=0):
+    """构造一行话术记录"""
+    return {
+        "uid": uid,
+        "parent(继承)": parent,
+        "repeat(次数)": repeat,
+        "conditions(条件)": cond,
+        "human(客户)": human,
+        "assistant(专员)": assistant,
+        "flexible_stop(可选不继承)": flex,
+        "是否再见": bye,
+    }
+
 
 # ============================================================
-# 1. 话术模板 Excel 数据
+# 2. 话术模板内容（每个 uid 提供多句候选，"/" 分隔）
 # ============================================================
 
-def _sheet_data(rows):
-    """将 list-of-dicts 转为 DataFrame，确保列顺序"""
-    df = pd.DataFrame(rows, columns=COLUMNS)
-    return df
-
-
-# --- 身份确认 (start, b_set) ---
 SHEET_IDENTITY = [
-    {
-        "uid": 1, "parent(继承)": None, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "喂你好 / 您好",
-        "assistant(专员)": "您好请问是{客户姓名}{客户性别}吗 / 您好，请问是{客户姓氏}吗",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
-    {
-        "uid": 2, "parent(继承)": 1, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "是的我是 / 对，是我",
-        "assistant(专员)": "{客户姓名}您好，我是{门店名称}{专员工号}号专员，今天致电是想跟您做个会员回访 / 您好{客户姓名}{客户性别}，我是{门店名称}的客服，工号{专员工号}，今天来跟您做个会员回访",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
-    {
-        "uid": 3, "parent(继承)": 2, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "哦好的你说 / 嗯，什么情况",
-        "assistant(专员)": "是这样的，您目前是{门店名称}的{会员等级}会员，积分余额{积分余额}分，想确认下您近期是否有到店消费的打算 / 查到您在我们{门店名称}的等级是{会员等级}，积分余额{积分余额}分",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
+    _R(1, None, "1",
+       "喂你好 / 您好 / 喂？ / 哪位啊",
+       "您好，请问是{客户姓名}{客户性别}吗 / 您好，请问是{客户姓氏}本人吗 / 请问是{客户姓名}的手机号吗"),
+    _R(2, 1, "1",
+       "是的我是 / 对，是我 / 我就是，你说",
+       "{客户姓名}您好，我是{门店名称}{专员工号}号专员，今天致电想跟您做个会员回访 / 您好{客户姓氏}，我是{门店名称}的客服，工号{专员工号}，今天来电做个会员关怀回访"),
+    _R(3, 2, "1",
+       "哦好的你说 / 嗯，什么事 / 你说吧我听着",
+       "是这样的，您是我们{门店名称}的{会员等级}会员，想先跟您确认下最近的消费体验 / 感谢您接听，您在{门店名称}的会员等级是{会员等级}，今天主要做个简单回访"),
 ]
 
-# --- 积分告知 (b_set) ---
+SHEET_VERIFY = [
+    _R(1, None, "1",
+       "你怎么知道我电话的 / 你们从哪拿到的号码 / 谁让你们打电话的",
+       "您别误会，是您在{小程序名称}注册会员时预留的号码，仅用于会员回访 / 您是我们{门店名称}的注册会员，信息只用于会员服务，请您放心"),
+    _R(2, 1, "1",
+       "哦那行吧 / 好吧你说 / 行吧，长话短说",
+       "好的谢谢理解，我这边简单跟您说下会员权益，耽误不了两分钟 / 感谢理解，那我就直说了",
+       flex=1),
+]
+
 SHEET_POINTS = [
-    {
-        "uid": 1, "parent(继承)": None, "repeat(次数)": "1/2",
-        "conditions(条件)": "",
-        "human(客户)": "积分还有多少 / 我的积分什么情况",
-        "assistant(专员)": "您目前积分余额{积分余额}分，按{会员等级}会员权益可兑换饮品或抵扣消费 / 积分余额{积分余额}分，{会员等级}会员可享受积分兑换和消费抵扣",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
-    {
-        "uid": 2, "parent(继承)": 1, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "那能怎么用 / 积分能干嘛",
-        "assistant(专员)": "积分可兑换{门店名称}指定饮品，单笔消费满{消费金额}元可用积分抵扣 / 积分能兑换饮品，单笔消费满{消费金额}元即可用积分抵扣",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
-    {
-        "uid": 3, "parent(继承)": 2, "repeat(次数)": "2",
-        "conditions(条件)": "",
-        "human(客户)": "哦这样啊 / 我考虑一下",
-        "assistant(专员)": "温馨提示，您的积分在{到期日期}前有效，到期未使用将清零，建议近期到店使用 / 积分将在{到期日期}到期，建议到期前到店使用哦",
-        "flexible_stop(可选不继承)": 1, "是否再见": 0,
-    },
+    _R(1, None, "1",
+       "积分还有多少 / 我的积分什么情况 / 我有多少积分来着",
+       "您目前的积分余额是{积分余额}分 / 查到您账户里有{积分余额}积分 / 给您查了下，当前{积分余额}分"),
+    _R(2, None, "1",
+       "我积分这么多吗 / 这么多分啊 / 这么多积分能换不少吧",
+       "您的积分余额有{积分余额}分之多，属于我们的高积分会员 / 恭喜您{客户姓氏}，您有{积分余额}分积分，数额非常可观 / 您这积分量排在门店前百分之十呢",
+       cond="{积分余额}大于2000"),
+    _R(3, None, "1",
+       "才这么点 / 积分这么少啊 / 几乎没多少嘛",
+       "您目前有{积分余额}分积分，额度不多，刚好可以趁活动攒一波 / 您的积分余额{积分余额}分，近期来消费顺便就能累积起来 / 分不多，配合活动用掉正合适",
+       cond="{积分余额}小于500"),
+    _R(4, 1, "1",
+       "那能怎么用 / 积分能干嘛 / 这积分有啥用",
+       "积分可以兑换{门店名称}的指定饮品，单笔消费满{消费金额}元就能用积分抵扣 / 积分既能换饮品也能抵现金，{会员等级}会员还有专属兑换价 / 每100积分抵1元，也能直接换招牌饮品"),
+    _R(5, 4, "2",
+       "哦这样啊 / 我知道了 / 行吧",
+       "温馨提示，您的积分在{到期日期}前有效，到期会清零，建议近期到店使用 / 提醒您一下，积分{到期日期}就到期了，抽空来用掉哦 / 别让积分白白过期，最近来一趟最划算",
+       flex=1),
 ]
 
-# --- 无意愿 (b_set, insert_nodes) ---
+SHEET_BENEFITS = [
+    _R(1, None, "1",
+       "会员有啥权益 / 你们会员有什么好处 / 会员能干啥",
+       "{会员等级}会员可享积分兑换、消费抵扣和生日礼遇 / 成为{门店名称}的{会员等级}会员，有积分抵现、专属折扣和新品试喝 / 权益主要是积分抵现、会员日折扣，还有每月一张优惠券"),
+    _R(2, None, "1",
+       "我这等级还有什么特别的 / 高等级有啥不一样",
+       "像您这样积分过千的{会员等级}会员，还能参加积分竞拍和限量周边兑换 / {会员等级}会员积分兑换打九折，每季还有一次免费升杯 / 高积分会员有专属客服通道和限定活动名额",
+       cond="{积分余额}大于1000"),
+    _R(3, 1, "1",
+       "还有呢 / 具体点 / 就这些啊",
+       "每周二是会员日，到店消费双倍积分，还能免费加一份小料 / 会员日当天{会员等级}会员第二杯半价，积分当钱花 / 生日当天来店里，饮品直接买一送一",
+       flex=1),
+]
+
+SHEET_PROMO = [
+    _R(1, None, "1",
+       "有什么活动吗 / 最近有优惠吗 / 这两天有啥活动",
+       "看您账户里有张{优惠券}还没用，本周到店消费就能用 / 您有一张{优惠券}快过期了，趁这次活动用掉最划算 / 您账户的{优惠券}正好能和会员日叠加",
+       cond="优惠券不为空"),
+    _R(2, None, "1",
+       "没券就没活动了吗 / 不发券啊 / 还有别的吗",
+       "本周会员日双倍积分，消费满{消费金额}元还送{随机金额}积分 / 现在有新品半价活动，{会员等级}会员到店还能再减 / 没券也没关系，会员日当天积分翻倍一样划算",
+       cond="优惠券为空"),
+    _R(3, 1, "1/2",
+       "是吗 / 那挺划算 / 哦？还有这种活动",
+       "活动到{到期日期}截止，您可以在{小程序名称}里先领券 / 名额有限，您在小程序下单还能额外获赠积分 / 活动详情我发您小程序消息里了，点开就能看",
+       flex=1),
+]
+
 SHEET_NO_INTEREST = [
-    {
-        "uid": 1, "parent(继承)": None, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "我不怎么去你们店了 / 算了不用了",
-        "assistant(专员)": "理解您{客户姓名}，不过您的{积分余额}分积分如果不用就浪费了，要不要考虑近期来一趟 / {客户姓名}{客户性别}，{积分余额}分积分来之不易，不用可惜了",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
-    {
-        "uid": 2, "parent(继承)": 1, "repeat(次数)": "1/2",
-        "conditions(条件)": "",
-        "human(客户)": "最近没时间 / 改天再说吧",
-        "assistant(专员)": "没关系，您随时可以来{门店名称}，积分兑换活动一直都有 / 没关系的{客户姓名}，{门店名称}随时欢迎您，积分活动长期有效",
-        "flexible_stop(可选不继承)": 1, "是否再见": 0,
-    },
-    {
-        "uid": 3, "parent(继承)": 2, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "好吧那我改天去 / 行吧我有空看看",
-        "assistant(专员)": "太好了{客户姓名}，期待您光临，到店出示{小程序名称}会员码即可 / 好的，到店后出示{小程序名称}的会员码就行，会有专属优惠",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
+    _R(1, None, "1",
+       "我不怎么去你们店了 / 算了不用了 / 暂时不需要",
+       "理解您{客户姓氏}，不过您{积分余额}分积分不用就浪费了，要不要考虑来一趟 / 没关系，就是特意提醒您积分{到期日期}到期，别浪费了 / 好的不强求，顺带提醒下您的积分情况"),
+    _R(2, 1, "1/2",
+       "最近没时间 / 改天再说吧 / 以后吧 / 忙着呢",
+       "好的不打扰您，活动长期有效，您随时可以来{门店名称} / 没问题，您有空在{小程序名称}点单也能参与，不用专门跑一趟 / 行，那我加您个小程序消息，您有空了看",
+       flex=1),
 ]
 
-# --- 流失风险 (a_set, insert_nodes) ---
-SHEET_CHURN_RISK = [
-    {
-        "uid": 1, "parent(继承)": None, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "你们的奶茶越来越难喝了 / 之前体验不好不想去了",
-        "assistant(专员)": "非常抱歉给您带来不好的体验{客户姓名}，{门店名称}一直在改进产品，最近推出了好几款新品 / {客户姓名}{客户性别}，听到您这样说很抱歉，我们已经改进了配方，近期有很多新品",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
-    {
-        "uid": 2, "parent(继承)": 1, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "新品有什么 / 有什么推荐的",
-        "assistant(专员)": "新推出了芝芝莓莓和杨枝甘露，{会员等级}会员首杯半价优惠 / 推荐试试芝芝莓莓和杨枝甘露，{会员等级}会员首杯半价哦",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
-    {
-        "uid": 3, "parent(继承)": 2, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "半价还行 / 那可以试试",
-        "assistant(专员)": "好的{客户姓名}，半价优惠到{到期日期}截止，到店跟店员说是{会员等级}会员即可 / 太好了，半价活动到{到期日期}，到店出示会员码就能享受",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
+SHEET_HESITATE = [
+    _R(1, None, "1",
+       "我再想想 / 让我考虑一下 / 再说吧 / 回头看情况",
+       "没问题，您主要顾虑哪方面呢，我帮您介绍下 / 可以的，您是担心没时间还是优惠力度，我给您详细说说 / 理解，货比三家很正常，您想了解什么我都说清楚"),
+    _R(2, 1, "1",
+       "也没啥顾虑就是懒 / 主要是太远了 / 最近天热不想出门",
+       "理解，您也可以在{小程序名称}点外卖，积分一样能用 / 那您忙的时候小程序下单，门店直接给您配送到家 / 不用专门跑，外卖下单会员权益照样享受",
+       flex=1),
 ]
 
-# --- 承诺到店 (b_set, 再见=1) ---
-SHEET_PROMISE_VISIT = [
-    {
-        "uid": 1, "parent(继承)": None, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "行那我这两天去一趟 / 好的我去看看",
-        "assistant(专员)": "好的{客户姓名}，期待您到店，有问题可打{门店电话}联系我们 / 太好了{客户姓名}，期待您光临{门店名称}，有问题随时拨打{门店电话}",
-        "flexible_stop(可选不继承)": 0, "是否再见": 1,
-    },
-    {
-        "uid": 2, "parent(继承)": 1, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "好的谢谢 / 行，再见",
-        "assistant(专员)": "感谢您的接听{客户姓名}，祝您生活愉快，再见 / 谢谢您{客户姓氏}，再见，期待您的光临",
-        "flexible_stop(可选不继承)": 0, "是否再见": 1,
-    },
+SHEET_PROMISE = [
+    _R(1, None, "1",
+       "行那我这两天去 / 好的我去看看 / 那我抽空去一趟",
+       "好的{客户姓氏}，期待您到店，有问题可拨打{门店电话} / 太好了，活动详情已发到您{小程序名称}账户，到店出示会员码就行 / 好嘞，您来之前可以小程序先点单，到店直接取",
+       bye=1),
+    _R(2, 1, "1",
+       "好的谢谢 / 行那就这样 / 嗯，没问题",
+       "感谢您的接听，祝您生活愉快，再见 / 谢谢您，再见，{门店名称}随时欢迎您 / 好的，祝您今天愉快，再见",
+       bye=1),
 ]
 
-# --- 已到店 (terminal) ---
-SHEET_ARRIVED = [
-    {
-        "uid": 1, "parent(继承)": None, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "我已经到店了 / 我刚去你们店了",
-        "assistant(专员)": "感谢您的光临{客户姓名}，积分兑换已为您办理，欢迎下次再来 / 太好了{客户姓名}，已为您核销积分，期待您下次光临{门店名称}",
-        "flexible_stop(可选不继承)": 0, "是否再见": 1,
-    },
+SHEET_RESERVE = [
+    _R(1, None, "1",
+       "能预约吗 / 帮我留个名额 / 周末去人多不多",
+       "可以的，您在{小程序名称}选好门店和时间预约就行，到店免排队 / 我帮您登记，预约到店出示会员码即可核销 / 周末位置紧张，提前预约我们给您留好",
+       bye=1),
+    _R(2, 1, "1",
+       "好的那我约周末 / 行约好了 / 帮我约周六下午吧",
+       "已为您备注周末到店，期待您的光临，再见 / 好的，门店会提前为您准备，再见 / 登记好了，我们周六见，祝您生活愉快",
+       bye=1),
 ]
 
-# --- 语音留言 (self_loop) ---
+SHEET_CHURN = [
+    _R(1, None, "1",
+       "你们奶茶越来越难喝了 / 上次体验很差不想去了 / 不想喝你们家了",
+       "非常抱歉给您带来不好的体验，我们已经改进配方，还推出了好几款新品 / 听到您这么说很抱歉，您方便说下具体哪方面不满意吗，我们一定改进 / 对不起让您失望了，您的意见我们会认真对待"),
+    _R(2, 1, "1",
+       "说了也没用 / 新品有什么 / 改没改进谁知道",
+       "您的意见对我们很重要，这次想邀请您免费试喝新品，再给我们一次机会 / 新品有芝芝莓莓和杨枝甘露，{会员等级}会员首杯半价 / 这次新品是我们重新研发的，您尝了不满意随时反馈",
+       flex=1),
+]
+
+SHEET_COMPLAINT = [
+    _R(1, None, "1",
+       "我要投诉 / 你们店员态度太差 / 上次的订单有问题",
+       "非常抱歉给您带来困扰，我马上为您记录并转交门店负责人 / 对不起{客户姓氏}，您的投诉我会加急处理，一定给您一个答复 / 实在抱歉，您慢慢说，我逐条记录"),
+    _R(2, 1, "1",
+       "那你们怎么解决 / 我要赔偿 / 总要有个说法吧",
+       "作为补偿，已为您账户发放优惠券和额外积分，您查收下 / 我们为您准备了免单券，48小时内到账，希望能弥补这次体验 / 门店负责人会在今天内主动联系您，补偿方案一并告知",
+       flex=1),
+]
+
 SHEET_VOICEMAIL = [
-    {
-        "uid": 1, "parent(继承)": None, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "",
-        "assistant(专员)": "您好{客户姓名}，这里是{门店名称}客服，关于您的{积分余额}分积分即将到期，请有空时回电{门店电话}，感谢 / 您好，{门店名称}客服温馨提示，您的{积分余额}分积分即将到期，详情请回电{门店电话}",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
+    _R(1, None, "1",
+       "",
+       "您好{客户姓名}，这里是{门店名称}客服，您有{积分余额}分积分即将到期，有空请回电{门店电话} / 您好，{门店名称}温馨提示您的积分{到期日期}到期，详情请回电{门店电话} / {客户姓氏}您好，会员积分即将清零，方便时请回电咨询"),
 ]
 
-# --- 链接促销话术 (pressure sheet，会员促销插播) ---
-SHEET_PROMOTION = [
-    {
-        "uid": 1, "parent(继承)": None, "repeat(次数)": "1",
-        "conditions(条件)": "",
-        "human(客户)": "",
-        "assistant(专员)": "顺便跟您说下，{门店名称}本周有会员日双倍积分活动，消费满{消费金额}元额外赠送{随机金额}积分 / 另外提醒您{客户姓名}，本周会员日消费有双倍积分，满{消费金额}元还送{随机金额}积分",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
-    {
-        "uid": 2, "parent(继承)": 1, "repeat(次数)": "2",
-        "conditions(条件)": "",
-        "human(客户)": "是吗还有什么活动",
-        "assistant(专员)": "还有储值充{消费金额}送{随机金额}的活动，{会员等级}会员额外加赠一杯饮品 / 储值充{消费金额}送{随机金额}，{会员等级}会员还额外赠送一杯饮品哦",
-        "flexible_stop(可选不继承)": 0, "是否再见": 0,
-    },
-    {
-        "uid": 3, "parent(继承)": 2, "repeat(次数)": "3",
-        "conditions(条件)": "",
-        "human(客户)": "好的我看看 / 行有空我去",
-        "assistant(专员)": "好的{客户姓名}，活动详情可到{小程序名称}查看，或到店咨询店员 / 活动详情可到{小程序名称}查看，到店时直接问店员也行",
-        "flexible_stop(可选不继承)": 1, "是否再见": 0,
-    },
+SHEET_ARRIVED = [
+    _R(1, None, "1",
+       "我已经到店了 / 刚在你们店消费完 / 我今天去过店里了",
+       "感谢您的光临，积分兑换已为您办理，欢迎下次再来 / 太好了，已为您核销积分，期待您下次光临{门店名称} / 谢谢您的支持，这次的积分也已到账，欢迎常来",
+       bye=1),
+]
+
+SHEET_REFUSE = [
+    _R(1, None, "1",
+       "不用了以后别打了 / 别再联系我 / 说了不需要",
+       "好的非常抱歉打扰您了，祝您生活愉快，再见 / 明白了，我们不会再致电，抱歉打扰，再见 / 好的尊重您的决定，不再打扰，再见",
+       bye=1),
+]
+
+SHEET_HANGUP = [
+    _R(1, None, "1",
+       "那就先这样 / 我先忙了挂了 / 行了知道了",
+       "好的不打扰您了，再见 / 感谢您的接听，再见 / 好的，祝您生活顺心，再见",
+       bye=1),
 ]
 
 MODULE_SHEETS = {
     "身份确认": SHEET_IDENTITY,
+    "身份核实": SHEET_VERIFY,
     "积分告知": SHEET_POINTS,
+    "权益介绍": SHEET_BENEFITS,
+    "活动推荐": SHEET_PROMO,
     "无意愿": SHEET_NO_INTEREST,
-    "流失风险": SHEET_CHURN_RISK,
-    "承诺到店": SHEET_PROMISE_VISIT,
-    "已到店": SHEET_ARRIVED,
+    "犹豫跟进": SHEET_HESITATE,
+    "承诺到店": SHEET_PROMISE,
+    "预约到店": SHEET_RESERVE,
+    "流失风险": SHEET_CHURN,
+    "投诉处理": SHEET_COMPLAINT,
     "语音留言": SHEET_VOICEMAIL,
+    "已到店": SHEET_ARRIVED,
+    "明确拒绝": SHEET_REFUSE,
+    "通话结束": SHEET_HANGUP,
 }
+
+# --- 链接促销话术（pressure sheet，在 insert 节点后按概率插播）---
+SHEET_PROMOTION = [
+    _R(1, None, "1",
+       "",
+       "顺便提醒您，{门店名称}本周会员日双倍积分，消费满{消费金额}元额外赠送{随机金额}积分 / 另外{客户姓氏}，本周会员日消费积分翻倍，满{消费金额}元再送{随机金额}积分"),
+    _R(2, 1, "2",
+       "是吗，还有什么活动 / 还有别的优惠吗",
+       "还有储值充{消费金额}送{随机金额}的活动，{会员等级}会员加赠一杯饮品 / 储值活动也很划算，充{消费金额}元送{随机金额}元，会员还多送一杯 / 现在办储值卡，{会员等级}会员首充立减再加赠饮品"),
+    _R(3, 2, "3",
+       "好的我看看 / 行，有空我去 / 知道了",
+       "好的，活动详情可到{小程序名称}查看，到店咨询店员也行 / 活动详情小程序里都有，您到店直接问店员也可以 / 没问题，我把活动链接发您小程序消息",
+       flex=1),
+]
+
+
+# ============================================================
+# 3. 案例与 Prompt 生成（500 组，确定性随机）
+# ============================================================
+
+SURNAMES = list("李王张刘陈杨黄赵周吴徐孙马朱胡郭何高林罗郑梁谢宋唐")
+GIVEN_FEMALE = ["雪", "敏", "静", "婷", "慧", "琳", "娜", "芳", "娟", "霞",
+                "秀英", "倩", "妍", "洁", "雯", "璐", "瑶", "蕾", "薇", "萍",
+                "雨桐", "若曦", "佳琪", "诗涵", "欣怡"]
+GIVEN_MALE = ["强", "伟", "军", "勇", "磊", "涛", "鹏", "超", "刚", "明",
+              "辉", "亮", "杰", "鑫", "浩", "宇", "轩", "博", "文", "龙",
+              "子轩", "浩然", "俊杰", "天佑", "致远"]
+
+BRANCHES = ["万达店", "万象城店", "大学城店", "中央广场店", "滨江店",
+            "高新园店", "火车站店", "老城区店", "银泰店", "紫荆店"]
+PHONES = ["400-888-9999", "400-666-8888", "400-999-1111", "400-123-4567", "400-555-7777"]
+LEVELS = ["普通", "银卡", "金卡", "VIP"]
+LEVEL_WEIGHTS = [40, 25, 20, 15]
+POINTS_RANGE = {
+    "普通": (0, 800),
+    "银卡": (300, 2000),
+    "金卡": (1000, 4000),
+    "VIP": (2000, 8000),
+}
+COUPONS = ["满20减5券", "新品半价券", "买一送一券", "免配送费券", "满30减10券", "升杯券"]
+TIMES = ["上午10点", "上午11点", "中午12点", "下午2点", "下午3点",
+         "下午4点", "下午5点", "傍晚6点"]
+TODAY = "2026年10月11日"
+
+NUM_CASES = 500
+
+# Persona → system prompt 模板（占位符在对话构建阶段统一填充）
+PROMPT_TEMPLATES = {
+    "vip": (
+        "你是{门店名称}的资深会员回访专员，工号{专员工号}。本次致电对象是高价值{会员等级}会员"
+        "{客户姓名}{客户性别}，其积分余额高达{积分余额}分，将于{到期日期}到期。"
+        "请以专业、热情的语气告知积分权益与到期风险，优先引导到店兑换或使用积分，"
+        "避免生硬推销，可结合本周会员日活动，客户明确拒绝时礼貌结束。"
+    ),
+    "gold": (
+        "你是{门店名称}的会员回访专员，工号{专员工号}。致电{会员等级}会员{客户姓名}{客户性别}，"
+        "其{积分余额}分积分将于{到期日期}到期。请清晰介绍会员权益与近期活动，"
+        "根据客户反应灵活引导其到店消费或小程序下单，保持耐心，不夸大优惠。"
+    ),
+    "silver": (
+        "你是{门店名称}的会员回访专员，工号{专员工号}。本次回访{会员等级}会员"
+        "{客户姓名}{客户性别}，账户有{积分余额}分积分。请轻松自然地告知积分情况，"
+        "结合消费抵扣和会员日活动提升其到店意愿，客户忙碌时简短结束。"
+    ),
+    "normal": (
+        "你是{门店名称}的会员回访专员，工号{专员工号}。致电普通会员{客户姓名}{客户性别}，"
+        "其积分余额{积分余额}分，额度不高。请以关怀为主，简单介绍积分用途与累积方式，"
+        "适当推荐近期活动，不做强硬推销，客户无意愿时礼貌道别。"
+    ),
+}
+
+
+def _expire_date(rng: random.Random) -> str:
+    """生成 2026-11 ~ 2027-08 的到期日期"""
+    month = rng.randint(11, 20)  # 13=2027年1月
+    year = 2026 if month <= 12 else 2027
+    month = month if month <= 12 else month - 12
+    day = rng.randint(1, 28)
+    return f"{year}年{month}月{day}日"
+
+
+def generate_case_records() -> List[Dict[str, str]]:
+    """生成 500 组确定性案例字段"""
+    rng = random.Random(SEED)
+    records = []
+    for _ in range(NUM_CASES):
+        level = rng.choices(LEVELS, weights=LEVEL_WEIGHTS, k=1)[0]
+        is_female = rng.random() < 0.5
+        given = rng.choice(GIVEN_FEMALE if is_female else GIVEN_MALE)
+        surname = rng.choice(SURNAMES)
+        gender = "女士" if is_female else "先生"
+        lo, hi = POINTS_RANGE[level]
+        points = rng.randint(lo, hi)
+        coupon = rng.choice(COUPONS) if rng.random() < 0.6 else ""
+        branch = rng.choice(BRANCHES)
+        fields = {
+            "门店名称": f"茗香茶饮（{branch}）",
+            "门店电话": rng.choice(PHONES),
+            "会员等级": level,
+            "积分余额": str(points),
+            "消费金额": f"{rng.randint(12, 68)}元",
+            "优惠券": coupon,
+            "到期日期": _expire_date(rng),
+            "客户姓名": surname + given,
+            "客户性别": gender,
+            "客户姓氏": surname + gender,
+            "专员工号": f"A{rng.randint(101, 299)}",
+            "小程序名称": "茗香小程序",
+            "今天日期": TODAY,
+            "当前时间": rng.choice(TIMES),
+        }
+        records.append(fields)
+    return records
+
+
+def _persona(fields: Dict[str, str]) -> str:
+    level, points = fields["会员等级"], int(fields["积分余额"])
+    if level == "VIP" or points > 3000:
+        return "vip"
+    if level == "金卡" or points > 1800:
+        return "gold"
+    if level == "银卡" or points > 600:
+        return "silver"
+    return "normal"
+
+
+# ============================================================
+# 4. 落盘函数
+# ============================================================
+
+def _clean_dir(directory: str) -> None:
+    """清空目录下的 .txt（保证重新生成后无旧文件残留）"""
+    os.makedirs(directory, exist_ok=True)
+    for name in os.listdir(directory):
+        if name.endswith(".txt"):
+            os.remove(os.path.join(directory, name))
 
 
 def generate_excel():
     """生成话术模板 Excel"""
     path = os.path.join(DATA_DIR, "话术模板.xlsx")
     with pd.ExcelWriter(path, engine="openpyxl") as writer:
-        for name, rows in MODULE_SHEETS.items():
-            _sheet_data(rows).to_excel(writer, sheet_name=name, index=False)
-        # 促销话术 sheet
-        _sheet_data(SHEET_PROMOTION).to_excel(
+        for name in MODULES:
+            pd.DataFrame(MODULE_SHEETS[name], columns=COLUMNS).to_excel(
+                writer, sheet_name=name, index=False
+            )
+        pd.DataFrame(SHEET_PROMOTION, columns=COLUMNS).to_excel(
             writer, sheet_name="链接促销话术", index=False
         )
-    print(f"  生成: {path}")
-    return path
+    print(f"  生成: {path}（{len(MODULES)} 模块 + 1 促销 sheet）")
 
-
-# ============================================================
-# 2. 概率矩阵 Excel
-# ============================================================
 
 def generate_prob_matrix():
-    """生成 7×7 整数百分比概率矩阵"""
-    # 行=from，列=to，每行和=100
-    # terminal(已到店) 和 self_loop(语音留言) 行全 0（校验跳过）
-    rows = [
-        # 身份确认→  积分  无意  流失  承诺  已到  语音
-        [0,  70, 15,  5,  0,  0, 10],  # 身份确认
-        [0,   0, 25, 10, 40, 20,  5],  # 积分告知
-        [0,  30,  0, 20, 30,  5, 15],  # 无意愿
-        [0,  20,  0,  0, 50, 15, 15],  # 流失风险
-        [0,  10,  0,  0,  0, 80, 10],  # 承诺到店
-        [0,   0,  0,  0,  0,  0,  0],  # 已到店
-        [0,   0,  0,  0,  0,  0,  0],  # 语音留言
-    ]
+    """由 EDGES 模块图自动生成 15×15 整数百分比概率矩阵"""
+    rows = [[EDGES[m].get(t, 0) for t in MODULES] for m in MODULES]
+    for m, row in zip(MODULES, rows):
+        total = sum(row)
+        if m not in TERMINALS and m not in SELF_LOOP:
+            assert total == 100, f"{m} 行权重和应为 100，实际 {total}"
     df = pd.DataFrame(rows, index=MODULES, columns=MODULES)
-
     path = os.path.join(DATA_DIR, "prob.xlsx")
     df.to_excel(path, sheet_name="prob", index=True)
-    print(f"  生成: {path}")
-    return path
+    print(f"  生成: {path}（由 {len(EDGES)} 个模块节点自动派生）")
+
+
+def generate_cases_and_prompts():
+    """生成 500 个 case 文件与 500 个配对 prompt 文件"""
+    _clean_dir(CASES_DIR)
+    _clean_dir(PROMPTS_DIR)
+    records = generate_case_records()
+    for idx, fields in enumerate(records, start=1):
+        name = f"case_{idx:04d}"
+        case_lines = [f"- {k}：{v}" for k, v in fields.items()]
+        with open(os.path.join(CASES_DIR, name + ".txt"), "w", encoding="utf-8") as f:
+            f.write("\n".join(case_lines))
+        prompt_text = PROMPT_TEMPLATES[_persona(fields)]
+        with open(os.path.join(PROMPTS_DIR, name + ".txt"), "w", encoding="utf-8") as f:
+            f.write(prompt_text)
+    print(f"  生成: {CASES_DIR}（{len(records)} 个案例）")
+    print(f"  生成: {PROMPTS_DIR}（{len(records)} 个配对 prompt）")
 
 
 # ============================================================
-# 3. 案例 .txt 文件
+# 5. demo_config.yaml（5000 条规模，split 加载器）
 # ============================================================
 
-CASES = [
-    {
-        "filename": "case_001.txt",
-        "intro": "你是{门店名称}的会员回访专员，工号{专员工号}。今天致电VIP会员{客户姓名}{客户性别}，告知其积分余额{积分余额}分即将在{到期日期}到期，引导其到店消费使用积分。",
-        "fields": {
-            "门店名称": "茗香茶饮",
-            "门店电话": "400-888-9999",
-            "会员等级": "VIP",
-            "积分余额": "1250",
-            "消费金额": "35元",
-            "到期日期": "2026年12月31日",
-            "客户姓名": "李雪",
-            "客户性别": "女士",
-            "客户姓氏": "李女士",
-            "专员工号": "A102",
-            "小程序名称": "茗香小程序",
-            "今天日期": "2026年10月10日",
-            "当前时间": "上午10点",
-        },
-    },
-    {
-        "filename": "case_002.txt",
-        "intro": "你是{门店名称}的会员回访专员，工号{专员工号}。今天致电普通会员{客户姓名}{客户性别}，其积分余额{积分余额}分，引导其到店兑换饮品或参加会员日活动。",
-        "fields": {
-            "门店名称": "茗香茶饮",
-            "门店电话": "400-888-9999",
-            "会员等级": "普通",
-            "积分余额": "380",
-            "消费金额": "20元",
-            "到期日期": "2026年11月15日",
-            "客户姓名": "王强",
-            "客户性别": "先生",
-            "客户姓氏": "王先生",
-            "专员工号": "A205",
-            "小程序名称": "茗香小程序",
-            "今天日期": "2026年10月10日",
-            "当前时间": "下午2点",
-        },
-    },
-    {
-        "filename": "case_003.txt",
-        "intro": "你是{门店名称}的会员回访专员，工号{专员工号}。今天致电VIP会员{客户姓名}{客户性别}，其积分余额{积分余额}分，近期单笔消费{消费金额}，推荐新品半价活动并引导到店。",
-        "fields": {
-            "门店名称": "茗香茶饮",
-            "门店电话": "400-888-9999",
-            "会员等级": "VIP",
-            "积分余额": "2100",
-            "消费金额": "48元",
-            "到期日期": "2027年1月20日",
-            "客户姓名": "张敏",
-            "客户性别": "女士",
-            "客户姓氏": "张女士",
-            "专员工号": "A103",
-            "小程序名称": "茗香小程序",
-            "今天日期": "2026年10月10日",
-            "当前时间": "下午3点半",
-        },
-    },
-]
-
-
-def generate_cases():
-    """生成案例 .txt 文件"""
-    for case in CASES:
-        path = os.path.join(CASES_DIR, case["filename"])
-        lines = [case["intro"], ""]
-        for k, v in case["fields"].items():
-            lines.append(f"- {k}：{v}")
-        with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
-        print(f"  生成: {path}")
-
-
-# ============================================================
-# 4. demo_config.yaml
-# ============================================================
+NUM_DIALOGUES = 5000
 
 DEMO_CONFIG = {
     "company": "milktea_demo",
@@ -366,28 +486,28 @@ DEMO_CONFIG = {
     "paths_cache_dir": "paths_demo",
     "paths_cache": "output/paths_demo/all_paths_{num_paths}_{seed}.json",
 
-    "num_paths": 5,
-    "num_dialogues": 5,
-    "num_paths_to_generate": 5,
+    "num_paths": NUM_DIALOGUES,
+    "num_dialogues": NUM_DIALOGUES,
+    "num_paths_to_generate": NUM_DIALOGUES,
     "random_seed": 42,
-    "checkpoint_interval": 100,
+    "checkpoint_interval": 1000,
 
     "prob_path": "demo/data/prob.xlsx",
     "excel_path": "demo/data/话术模板.xlsx",
 
     "case_loader": {
-        "type": "default",
+        "type": "split",
+        "replace_dir": "demo/data/cases",
+        "system_dir": "demo/data/prompts",
     },
-    "cases_dir": "demo/data/cases",
 
-    "a_set": ["流失风险"],
-    "b_set": ["身份确认", "积分告知", "无意愿", "承诺到店"],
-    "terminal_modules": ["已到店"],
-    "self_loop_modules": {"语音留言": 0.05},
-    "insert_nodes": ["无意愿", "流失风险"],
+    "a_set": A_SET,
+    "b_set": B_SET,
+    "terminal_modules": TERMINALS,
+    "self_loop_modules": SELF_LOOP,
+    "insert_nodes": INSERT_NODES,
 
     "pressure_sheet_name": "链接促销话术",
-
     "pressure_prob": 0.3,
     "pressure_dynamic_enabled": True,
     "pressure_calc_type": "exponential",
@@ -397,7 +517,7 @@ DEMO_CONFIG = {
     "pressure_max_total": 3,
     "pressure_strategy": {"type": "normalized"},
     "module_pressure_weights": {
-        "无意愿": 1.2,
+        "活动推荐": 1.2,
         "流失风险": 1.0,
     },
 
@@ -428,11 +548,10 @@ DEMO_CONFIG = {
 
 
 def generate_config():
-    """生成 demo_config.yaml"""
     path = os.path.join(DEMO_DIR, "demo_config.yaml")
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(DEMO_CONFIG, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
-    print(f"  生成: {path}")
+    print(f"  生成: {path}（{NUM_DIALOGUES} 条规模）")
 
 
 # ============================================================
@@ -440,30 +559,29 @@ def generate_config():
 # ============================================================
 
 def main():
-    print("=== 生成奶茶店会员回访 Demo 虚拟数据 ===")
+    print("=== 生成奶茶店会员回访 Demo 虚拟数据（5000 条规模）===")
     print(f"  种子: {SEED}")
     print(f"  输出目录: {DATA_DIR}")
     print()
 
     os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(CASES_DIR, exist_ok=True)
 
     print("[1/4] 生成话术模板 Excel...")
     generate_excel()
 
-    print("[2/4] 生成概率矩阵 Excel...")
+    print("[2/4] 由模块图自动生成概率矩阵...")
     generate_prob_matrix()
 
-    print("[3/4] 生成案例文件...")
-    generate_cases()
+    print("[3/4] 生成案例与配对 prompt...")
+    generate_cases_and_prompts()
 
     print("[4/4] 生成配置文件...")
     generate_config()
 
     print()
     print("=== 全部生成完成 ===")
-    print("验证方法:")
-    print("  python -c \"import sys;sys.path.insert(0,'scripts_general');from core.data.data_loader import load_prob_matrix;print(load_prob_matrix('demo/data/prob.xlsx'))\"")
+    print("生成 5000 条对话:")
+    print("  python scripts_general/main.py -c demo/demo_config.yaml")
 
 
 if __name__ == "__main__":
