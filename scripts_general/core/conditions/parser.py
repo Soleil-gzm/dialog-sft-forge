@@ -12,13 +12,10 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Tuple
 
 import pandas as pd
-from core.conditions.atomic import AtomicCondition, parse_overdue_value
+from core.conditions.atomic import AtomicCondition
 from core.conditions.base import ConditionEvaluator
-from core.conditions.deduct_failure_reason import DeductFailureReasonCondition
 from core.conditions.field_nullability import FieldNullabilityCondition
-from core.conditions.follow_info import FollowInfoCondition
-from core.conditions.overdue_days import OverdueDaysCondition
-from core.conditions.overdue_flag import OverdueFlagCondition
+from core.conditions.numeric_compare import NumericCompareCondition
 from core.conditions.unknown import UnknownTokenCondition
 
 
@@ -29,11 +26,8 @@ class ConditionParser(ConditionEvaluator):
         self._register_defaults()
 
     def _register_defaults(self):
-        self.register_token(OverdueFlagCondition())
-        self.register_token(OverdueDaysCondition())
+        self.register_token(NumericCompareCondition())
         self.register_token(FieldNullabilityCondition())
-        self.register_token(FollowInfoCondition())
-        self.register_token(DeductFailureReasonCondition())
 
     def register_token(self, cond: AtomicCondition) -> None:
         self._token.append(cond)
@@ -87,17 +81,15 @@ class ConditionParser(ConditionEvaluator):
     ) -> Dict[str, Any]:
         """
         返回结构：
-        {matched, parsed_condition, overdue_value, atomic_results}
+        {matched, parsed_condition, atomic_results}
         """
         pred, conds, descs, preds = self.parse(condition_str)
         matched = pred(case)
-        overdue_value = parse_overdue_value(case)
         parsed_condition = " & ".join(descs) if descs else "无条件"
         atomic_results = {desc: p(case) for desc, p in zip(descs, preds)}
         return {
             "matched": matched,
             "parsed_condition": parsed_condition,
-            "overdue_value": overdue_value,
             "atomic_results": atomic_results,
         }
 

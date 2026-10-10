@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
 多轮对话生成脚本（重构版）
-基于配置驱动、模块化设计，支持通用催收模板。
+基于配置驱动、模块化设计，支持任意场景的多轮对话数据合成。
 统一单进程/多进程代码路径，支持断点续传、流式写入、追踪和自动分析。
 
-# 使用默认配置文件
+# 使用默认配置文件（奶茶店会员回访 demo）
 python scripts_general/main.py
 
 # 指定自定义配置文件（短选项）
-python scripts_general/main.py -c configs/xiaoying_v2/general_Xiaoying_0702_3w_debug.yaml
+python scripts_general/main.py -c demo/demo_config.yaml
 
 # 指定自定义配置文件（长选项）
-python scripts_general/main.py --config configs/xiaoying_v2/general_Xiaoying_0702_3w_debug.yaml
+python scripts_general/main.py --config demo/demo_config.yaml
 
 # 强制重新生成（忽略断点）
 python scripts_general/main.py -f
@@ -42,8 +42,8 @@ def main():
         "-c",
         "--config",
         type=str,
-        default="configs/xiaoying_v2/general_Xiaoying_0703_4w.yaml",
-        help="配置文件路径（默认: configs/xiaoying_v2/general_Xiaoying_0703_4w.yaml）",
+        default="demo/demo_config.yaml",
+        help="配置文件路径（默认: demo/demo_config.yaml）",
     )
     parser.add_argument(
         "-f",

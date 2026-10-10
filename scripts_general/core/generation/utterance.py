@@ -144,42 +144,13 @@ def get_random_descendant_chain(
 
 
 def fill_placeholders(text: str, case: Dict[str, Any]) -> str:
-    """替换文本中的花括号占位符"""
+    """替换文本中的花括号占位符
+
+    通用替换：遍历 case 所有字段，将 {字段名} 替换为对应值。
+    任意场景字段（如奶茶店的 {门店名称}/{会员等级}）只需写入 case 即可生效。
+    """
     if not isinstance(text, str):
         return text
-    replacements = {
-        "{客服电话}": case.get("客服电话", ""),
-        "{机构名称}": case.get("机构名称", ""),
-        "{业务类型}": case.get("业务类型", ""),
-        "{APP名称}": case.get("APP名称", ""),
-        "{抬头}": case.get("抬头", ""),
-        "{专员工号}": case.get("专员工号", ""),
-        "{客户姓名}": case.get("客户姓名", ""),
-        "{客户性别}": case.get("客户性别", ""),
-        "{客户姓氏}": case.get("客户姓氏", ""),
-        "{逾期天数}": case.get("逾期天数_显示", ""),
-        "{今天日期}": case.get("今天日期", ""),
-        "{查账时间}": case.get("查账时间", ""),
-        "{当前时间}": case.get("当前时间", ""),
-        "{应还金额}": case.get("应还金额", ""),
-        "{总欠款}": case.get("总欠款", ""),
-        "{本金}": case.get("本金", ""),
-        "{利息}": case.get("利息", ""),
-        "{违约金}": case.get("违约金", ""),
-        "{罚息}": case.get("罚息", ""),
-        "{还款日}": case.get("还款日", ""),
-        "{随机金额}": case.get("随机金额", ""),
-        "{随机时间}": case.get("随机时间", ""),
-        "{随机数字}": case.get("随机数字", ""),
-        "{随机还款日}": case.get("随机还款日", ""),
-        "{总本金}": case.get("总本金", ""),
-        "{逾期笔数}": case.get("逾期笔数_数值", ""),
-        "{empty_tag}": "。",
-    }
-    for k, v in replacements.items():
-        text = text.replace(k, str(v))
-    # 通用占位符替换：遍历 case 所有字段，替换 {字段名}（跳过已处理的）
-    # 使任意场景字段（如奶茶店的 {门店名称}/{会员等级}）也能被填充
     for key, val in case.items():
         placeholder = "{" + str(key) + "}"
         if placeholder in text:

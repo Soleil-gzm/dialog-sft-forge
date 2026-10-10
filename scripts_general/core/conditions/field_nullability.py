@@ -1,25 +1,30 @@
 """
-字段空/非空条件（token 级，通用模板）。
+字段空/非空条件（token 级，通用）。
 
-匹配 `X不为空` / `X为空`，X ∈ {总欠款, 本金, 利息, 罚息, 逾期笔数}。
-新增字段只需在 FIELD_MAP 加一行，消除原 if-elif 重复。
+匹配 `X不为空` / `X为空`，X 为任意 case 字段名，如 `优惠券不为空`、`备注为空`。
+判断依据：优先取 case 的 "{X}_数值"（>0 视为非空）；
+无数值键时从原始值提取数字，无数字则按"非空字符串视为非空"处理。
 """
 
 import re
 from typing import Any, Dict
 
-from core.conditions.atomic import AtomicCondition, safe_float, safe_int
+from core.conditions.atomic import AtomicCondition, safe_float
 
-_PATTERN = re.compile(r"^(总欠款|本金|利息|罚息|逾期笔数)(不为空|为空)$")
+_PATTERN = re.compile(r"^(.+?)(不为空|为空)$")
 
-# 字段名 → case 中的数值键 + 转换函数
-_FIELD_MAP = {
-    "总欠款": ("总欠款_数值", safe_float),
-    "本金": ("本金_数值", safe_float),
-    "利息": ("利息_数值", safe_float),
-    "罚息": ("罚息_数值", safe_float),
-    "逾期笔数": ("逾期笔数_数值", safe_int),
-}
+
+def _numeric_value(case: Dict[str, Any], field: str) -> float:
+    key = f"{field}_数值"
+    if key in case:
+        return safe_float(case[key])
+    raw = case.get(field)
+    if raw is None:
+        return 0.0
+    m = re.search(r"[\d.]+", str(raw))
+    if m:
+        return float(m.group())
+    return 1.0 if str(raw).strip() else 0.0
 
 
 class FieldNullabilityCondition(AtomicCondition):
@@ -31,8 +36,7 @@ class FieldNullabilityCondition(AtomicCondition):
         if not m:
             return False
         field, op = m.group(1), m.group(2)
-        case_key, convert = _FIELD_MAP[field]
-        val = convert(case.get(case_key, 0))
+        val = _numeric_value(case, field)
         return (val > 0) if op == "不为空" else (val == 0)
 
     def describe(self, s: str) -> str:

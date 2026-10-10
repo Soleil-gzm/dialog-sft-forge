@@ -2,7 +2,7 @@
 数据载入子包
 """
 
-from .case_loader import CaseLoader, DefaultCaseLoader, XiaoyingCaseLoader
+from .case_loader import CaseLoader, DefaultCaseLoader, SplitCaseLoader
 from .data_loader import (load_cases, load_prob_matrix, load_sheets,
                           parse_case_info)
 
@@ -13,5 +13,5 @@ __all__ = [
     "load_cases",
     "CaseLoader",
     "DefaultCaseLoader",
-    "XiaoyingCaseLoader",
+    "SplitCaseLoader",
 ]

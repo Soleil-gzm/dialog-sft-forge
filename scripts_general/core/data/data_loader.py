@@ -109,102 +109,16 @@ def parse_case_info(
     解析单个案例文件，返回字段字典。
     如果提供 rng，则使用它生成随机值；否则使用全局 random。
     如果提供 time_gen，则用它生成自然时间；否则使用 SimpleNaturalTimeGenerator。
+
+    通用解析规则：
+    - 每行格式为 "- 字段：值"（兼容中文/英文冒号），逐行解析进字段字典
+    - 值为纯数字时自动附加 {字段}_数值（int），否则提取首个数字附加（float）
+      供数值比较类条件（如 {积分余额}大于1000）使用
     """
     data = {}
     with open(txt_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
-    for line in lines:
-        line = line.strip()
-        if line.startswith("- 客服电话："):
-            data["客服电话"] = line.split("：")[1].strip()
-        elif line.startswith("- 机构名称："):
-            data["机构名称"] = line.split("：")[1].strip()
-        elif line.startswith("- 业务类型："):
-            data["业务类型"] = line.split("：")[1].strip()
-        elif line.startswith("- APP名称："):
-            data["APP名称"] = line.split("：")[1].strip()
-        elif line.startswith("- 抬头："):
-            data["抬头"] = line.split("：")[1].strip()
-        elif line.startswith("- 专员工号："):
-            data["专员工号"] = line.split("：")[1].strip()
-        elif line.startswith("- 客户姓名："):
-            data["客户姓名"] = line.split("：")[1].strip()
-        elif line.startswith("- 客户性别："):
-            data["客户性别"] = line.split("：")[1].strip()
-        elif line.startswith("- 客户姓氏："):
-            data["客户姓氏"] = line.split("：")[1].strip()
-        elif line.startswith("- 逾期天数："):
-            raw_overdue = line.split("：")[1].strip()
-            data["逾期天数"] = raw_overdue
-            try:
-                overdue_value = int(raw_overdue)
-            except (ValueError, TypeError):
-                overdue_value = 0
-            data["逾期天数_显示"] = str(abs(overdue_value))
-        # ===== 修复：支持中文冒号和英文冒号 =====
-        elif "- 逾期笔数" in line:
-            # 同时兼容 "：" 和 ":"
-            if "：" in line:
-                raw = line.split("：")[1].strip()
-            else:
-                raw = line.split(":")[1].strip()
-            data["逾期笔数"] = raw
-            try:
-                data["逾期笔数_数值"] = int(raw)
-            except ValueError:
-                data["逾期笔数_数值"] = 0
-        # ===== 修复结束 =====
-        elif line.startswith("- 今天日期："):
-            data["今天日期"] = line.split("：")[1].strip()
-        elif line.startswith("- 查账时间："):
-            data["查账时间"] = line.split("：")[1].strip()
-        elif line.startswith("- 当前时间："):
-            data["当前时间"] = line.split("：")[1].strip()
-        elif line.startswith("- 还款日："):
-            data["还款日"] = line.split("：")[1].strip()
-        elif line.startswith("- 应还金额："):
-            raw = line.split("：")[1].strip()
-            data["应还金额"] = raw
-            match = re.search(r"[\d.]+", raw)
-            data["应还金额_数值"] = float(match.group()) if match else 0.0
-        elif line.startswith("- 总欠款："):
-            raw = line.split("：")[1].strip()
-            data["总欠款"] = raw
-            match = re.search(r"[\d.]+", raw)
-            data["总欠款_数值"] = float(match.group()) if match else 0.0
-        elif line.startswith("- 本金："):
-            raw = line.split("：")[1].strip()
-            data["本金"] = raw
-            match = re.search(r"[\d.]+", raw)
-            data["本金_数值"] = float(match.group()) if match else 0.0
-        elif line.startswith("- 利息："):
-            raw = line.split("：")[1].strip()
-            data["利息"] = raw
-            match = re.search(r"[\d.]+", raw)
-            data["利息_数值"] = float(match.group()) if match else 0.0
-        elif line.startswith("- 违约金："):
-            raw = line.split("：")[1].strip()
-            data["违约金"] = raw
-            match = re.search(r"[\d.]+", raw)
-            data["违约金_数值"] = float(match.group()) if match else 0.0
-        elif line.startswith("- 罚息："):
-            raw = line.split("：")[1].strip()
-            data["罚息"] = raw
-            match = re.search(r"[\d.]+", raw)
-            data["罚息_数值"] = float(match.group()) if match else 0.0
-        elif line.startswith("- 应还金额："):
-            raw = line.split("：")[1].strip()
-            data["应还金额"] = raw
-            match = re.search(r"[\d.]+", raw)
-            data["应还金额_数值"] = float(match.group()) if match else 0.0
-        elif line.startswith("- 总本金："):
-            raw = line.split("：")[1].strip()
-            data["总本金"] = raw
-            match = re.search(r"[\d.]+", raw)
-            data["总本金_数值"] = float(match.group()) if match else 0.0
 
-    # 通用解析：捕获未特定处理的 - 字段：值 行，使任意场景字段可解析
-    # （如奶茶店的会员等级/积分余额/门店名称），向后兼容已有催收字段
     for line in lines:
         line = line.strip()
         if not line.startswith("- "):
@@ -214,33 +128,32 @@ def parse_case_info(
         if sep is None:
             continue
         field = rest.split(sep, 1)[0].strip()
-        if field in data:
-            continue  # 跳过已特定处理的字段，避免覆盖特殊后缀逻辑
+        if not field or field in data:
+            continue
         value = rest.split(sep, 1)[1].strip()
         data[field] = value
-        m = re.search(r"[\d.]+", value)
-        if m:
-            try:
-                data[field + "_数值"] = float(m.group())
-            except ValueError:
-                pass
-
-    # 获取应还金额数值（用于随机金额生成）
-    overdue_amount = data.get("应还金额_数值", 0.0)
+        if re.fullmatch(r"\d+", value):
+            data[field + "_数值"] = int(value)
+        else:
+            m = re.search(r"[\d.]+", value)
+            if m:
+                try:
+                    data[field + "_数值"] = float(m.group())
+                except ValueError:
+                    pass
 
     # 生成随机字段
     if rng is not None:
         random_ratio = rng.uniform(0.3, 0.6)  # 30%~60%
         random_digits = rng.randint(1, 10)  # 1-10 整数
-        random_repay_day = rng.randint(1, 28)  # 1-28 整数
     else:
         random_ratio = random.uniform(0.3, 0.6)
         random_digits = random.randint(1, 10)
-        random_repay_day = random.randint(1, 28)
 
-    data["随机金额"] = str(round(overdue_amount * random_ratio))
+    # 随机金额：以"消费金额"数值为基数（若无该字段则为 0）
+    base_amount = data.get("消费金额_数值", 0.0)
+    data["随机金额"] = str(round(base_amount * random_ratio))
     data["随机数字"] = str(random_digits)
-    data["随机还款日"] = f"{random_repay_day}号"  # 新增字段
 
     # 生成自然口语化时间
     if rng is not None:

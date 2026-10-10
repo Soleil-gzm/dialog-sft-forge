@@ -2,22 +2,16 @@
 案例加载器抽象及实现
 支持：
 - 默认加载器：从单个目录读取 .txt，同时作为 case 和 prompt（原有行为）
-- 小赢加载器：从 replace_dir 加载 case 数据，从 system_dir 加载 prompt 数据
+- 分离式加载器：从 replace_dir 加载 case 数据，从 system_dir 加载 prompt 数据
 """
 
 from __future__ import annotations
 
 import os
-import re
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 
 # parse_case_info / RandomService / TimeGenerator 延迟导入，避免 core.data → core.utils → core.generation → factory → case_loader 循环导入
-
-# 从 system 文件中提取 "跟催-XXX" 的正则
-_FOLLOW_INFO_PATTERN = re.compile(r"跟催-(.+?)(?:\s*$|\n)", re.MULTILINE)
-# ★ 新增：从 system 中提取 <代扣失败原因> 标签
-_DEDUCT_FAILURE_PATTERN = re.compile(r"<代扣失败原因>\s*([^<\n]+)")
 
 
 class CaseLoader(ABC):
@@ -64,9 +58,9 @@ class DefaultCaseLoader(CaseLoader):
         return cases, prompts
 
 
-class XiaoyingCaseLoader(CaseLoader):
+class SplitCaseLoader(CaseLoader):
     """
-    小赢专用加载器：
+    分离式（split）加载器：
     - replace_dir: 存放案例数据（占位填充用），文件格式为 "- 字段：值"
     - system_dir: 存放系统提示文本，文件内容直接作为 prompt
     两个目录中的文件按文件名排序后一一对应。
@@ -114,15 +108,5 @@ class XiaoyingCaseLoader(CaseLoader):
             with open(system_path, "r", encoding="utf-8") as f:
                 prompt_text = f.read()
             prompts.append(prompt_text)
-
-            # 从 system 文件提取跟催信息
-            m = _FOLLOW_INFO_PATTERN.search(prompt_text)
-            if m:
-                case["跟催信息"] = m.group(1).strip()
-
-            # ★ 新增：从 system 文件提取代扣失败原因，写入 case["代扣结果"]
-            m2 = _DEDUCT_FAILURE_PATTERN.search(prompt_text)
-            if m2:
-                case["代扣结果"] = m2.group(1).strip()
 
         return cases, prompts

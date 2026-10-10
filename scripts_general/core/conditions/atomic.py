@@ -59,11 +59,3 @@ def safe_int(value, default: int = 0) -> int:
         except ValueError:
             return default
     return default
-
-
-def parse_overdue_value(case: Dict[str, Any]) -> int:
-    """从 case 中解析逾期天数，异常时返回 0"""
-    try:
-        return int(case.get("逾期天数", 0))
-    except (ValueError, TypeError):
-        return 0

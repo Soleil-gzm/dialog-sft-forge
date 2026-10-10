@@ -62,15 +62,15 @@ case_generate*
 combinations*.json
 
 # ---------- 本地 / 敏感配置 ----------
-# configs/ 如果是公开模板，不要忽略；
-# 如果是公司业务敏感配置，取消下面这行注释：
-# configs/
+# 求职笔记等私人文档，禁止提交
+大模型应用方向求职项目经历撰写.md
+tmpt*.json
+
 config_templates/
 scripts_general/case_generator/
 scripts_general/excel2prob/
 scripts_general/testing/
 json_handle.ipynb/
-README.md/
 doc/
 .trae/
 # 如需保留示例模板，用下面写法（注意父目录不要整体忽略）：

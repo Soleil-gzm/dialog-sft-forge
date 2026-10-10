@@ -5,13 +5,10 @@
 新增条件类型只需写一个 AtomicCondition 子类并 register。
 """
 
-from .atomic import AtomicCondition, parse_overdue_value, safe_float, safe_int
+from .atomic import AtomicCondition, safe_float, safe_int
 from .base import ConditionEvaluator
-from .deduct_failure_reason import DeductFailureReasonCondition
 from .field_nullability import FieldNullabilityCondition
-from .follow_info import FollowInfoCondition
-from .overdue_days import OverdueDaysCondition
-from .overdue_flag import OverdueFlagCondition
+from .numeric_compare import NumericCompareCondition
 from .parser import ConditionParser
 from .passthrough import PassthroughCondition
 from .unknown import UnknownTokenCondition
@@ -21,13 +18,9 @@ __all__ = [
     "AtomicCondition",
     "ConditionParser",
     "PassthroughCondition",
-    "OverdueFlagCondition",
-    "OverdueDaysCondition",
+    "NumericCompareCondition",
     "FieldNullabilityCondition",
-    "FollowInfoCondition",
-    "DeductFailureReasonCondition",
     "UnknownTokenCondition",
     "safe_float",
     "safe_int",
-    "parse_overdue_value",
 ]

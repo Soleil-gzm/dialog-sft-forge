@@ -3,3 +3,5 @@ pandas
 openpyxl
 pyyaml
 numpy
+tqdm
+pytest

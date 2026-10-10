@@ -381,7 +381,7 @@ class DialogueBuilder:
         case_id = case.get("_filename", case.get("客户姓名", "unknown"))
         self.trace_collector.start_dialogue(path, case_id)
         self.pressure_count = 0
-        self._current_condition_meta = {"requires_abs_overdue": False}
+        self._current_condition_meta = {}
 
         messages = []
         sys_content = f"{prompt_text}"
@@ -411,7 +411,7 @@ class DialogueBuilder:
             if overall_stop_reason is None:
                 self.trace_collector.set_stop_reason("path_natural_end")
 
-        # 占位符填充（始终使用逾期天数_显示，已取绝对值）
+        # 占位符填充（system 与各轮消息统一走通用替换）
         for msg in messages:
             if "content" in msg:
                 msg["content"] = fill_placeholders(msg["content"], case)

@@ -1,6 +1,6 @@
 from core.analysis.analyzer import DefaultAnalyzer
 from core.data.case_loader import (CaseLoader, DefaultCaseLoader,
-                                   XiaoyingCaseLoader)
+                                   SplitCaseLoader)
 from core.generation.config import Config
 from core.generation.probability import (ExponentialProbabilityCalculator,
                                          LinearProbabilityCalculator,
@@ -22,14 +22,14 @@ def create_case_loader(config: Config) -> CaseLoader:
         if not cases_dir:
             raise ValueError("默认加载器需要配置 cases_dir")
         return DefaultCaseLoader(cases_dir)
-    elif loader_type == "xiaoying":
+    elif loader_type == "split":
         replace_dir = config.get("case_loader.replace_dir")
         system_dir = config.get("case_loader.system_dir")
         if not replace_dir or not system_dir:
             raise ValueError(
-                "小赢加载器需要配置 case_loader.replace_dir 和 case_loader.system_dir"
+                "split 加载器需要配置 case_loader.replace_dir 和 case_loader.system_dir"
             )
-        return XiaoyingCaseLoader(replace_dir, system_dir)
+        return SplitCaseLoader(replace_dir, system_dir)
     else:
         raise ValueError(f"Unknown case_loader type: {loader_type}")
 
