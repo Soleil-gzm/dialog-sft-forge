@@ -178,4 +178,10 @@ def fill_placeholders(text: str, case: Dict[str, Any]) -> str:
     }
     for k, v in replacements.items():
         text = text.replace(k, str(v))
+    # 通用占位符替换：遍历 case 所有字段，替换 {字段名}（跳过已处理的）
+    # 使任意场景字段（如奶茶店的 {门店名称}/{会员等级}）也能被填充
+    for key, val in case.items():
+        placeholder = "{" + str(key) + "}"
+        if placeholder in text:
+            text = text.replace(placeholder, str(val))
     return text

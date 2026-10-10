@@ -203,6 +203,28 @@ def parse_case_info(
             match = re.search(r"[\d.]+", raw)
             data["总本金_数值"] = float(match.group()) if match else 0.0
 
+    # 通用解析：捕获未特定处理的 - 字段：值 行，使任意场景字段可解析
+    # （如奶茶店的会员等级/积分余额/门店名称），向后兼容已有催收字段
+    for line in lines:
+        line = line.strip()
+        if not line.startswith("- "):
+            continue
+        rest = line[2:]
+        sep = "：" if "：" in rest else (":" if ":" in rest else None)
+        if sep is None:
+            continue
+        field = rest.split(sep, 1)[0].strip()
+        if field in data:
+            continue  # 跳过已特定处理的字段，避免覆盖特殊后缀逻辑
+        value = rest.split(sep, 1)[1].strip()
+        data[field] = value
+        m = re.search(r"[\d.]+", value)
+        if m:
+            try:
+                data[field + "_数值"] = float(m.group())
+            except ValueError:
+                pass
+
     # 获取应还金额数值（用于随机金额生成）
     overdue_amount = data.get("应还金额_数值", 0.0)
 

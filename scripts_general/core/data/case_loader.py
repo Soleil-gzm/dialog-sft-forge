@@ -5,14 +5,14 @@
 - 小赢加载器：从 replace_dir 加载 case 数据，从 system_dir 加载 prompt 数据
 """
 
+from __future__ import annotations
+
 import os
 import re
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 
-from core.data.data_loader import parse_case_info  # 复用原有解析函数
-from core.utils.random_service import RandomService
-from core.utils.time_generator import TimeGenerator
+# parse_case_info / RandomService / TimeGenerator 延迟导入，避免 core.data → core.utils → core.generation → factory → case_loader 循环导入
 
 # 从 system 文件中提取 "跟催-XXX" 的正则
 _FOLLOW_INFO_PATTERN = re.compile(r"跟催-(.+?)(?:\s*$|\n)", re.MULTILINE)
@@ -48,7 +48,7 @@ class DefaultCaseLoader(CaseLoader):
         rng: Optional[RandomService] = None,
         time_gen: Optional[TimeGenerator] = None,
     ) -> Tuple[List[Dict], List[str]]:
-        from scripts_general.core.data.data_loader import load_cases  # 避免循环导入
+        from core.data.data_loader import load_cases  # 延迟导入避免循环
 
         cases, prompts = load_cases(self.cases_dir, rng=rng, time_gen=time_gen)
 
@@ -86,6 +86,8 @@ class XiaoyingCaseLoader(CaseLoader):
         rng: Optional[RandomService] = None,
         time_gen: Optional[TimeGenerator] = None,
     ) -> Tuple[List[Dict], List[str]]:
+        from core.data.data_loader import parse_case_info  # 延迟导入避免循环
+
         replace_files = self._get_sorted_files(self.replace_dir)
         system_files = self._get_sorted_files(self.system_dir)
 

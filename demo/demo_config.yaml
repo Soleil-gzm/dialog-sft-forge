@@ -1,0 +1,66 @@
+company: milktea_demo
+task_name: milktea_member_callback
+start_module: 身份确认
+output_dir: output
+paths_cache_dir: paths_demo
+paths_cache: output/paths_demo/all_paths_{num_paths}_{seed}.json
+num_paths: 5
+num_dialogues: 5
+num_paths_to_generate: 5
+random_seed: 42
+checkpoint_interval: 100
+prob_path: demo/data/prob.xlsx
+excel_path: demo/data/话术模板.xlsx
+case_loader:
+  type: default
+cases_dir: demo/data/cases
+a_set:
+- 流失风险
+b_set:
+- 身份确认
+- 积分告知
+- 无意愿
+- 承诺到店
+terminal_modules:
+- 已到店
+self_loop_modules:
+  语音留言: 0.05
+insert_nodes:
+- 无意愿
+- 流失风险
+pressure_sheet_name: 链接促销话术
+pressure_prob: 0.3
+pressure_dynamic_enabled: true
+pressure_calc_type: exponential
+pressure_start_prob: 0.05
+pressure_end_prob: 0.6
+pressure_curve_exponent: 2.0
+pressure_max_total: 3
+pressure_strategy:
+  type: normalized
+module_pressure_weights:
+  无意愿: 1.2
+  流失风险: 1.0
+flexible_stop_prob: 0.3
+goodbye_termination_prob: 0.7
+goodbye_dynamic_enabled: true
+goodbye_calc_type: exponential
+goodbye_start_prob: 0.05
+goodbye_end_prob: 0.8
+goodbye_exponent: 3.0
+goodbye_min_idx: 2
+time_generator:
+  type: simple_natural
+trace_enabled: false
+logging:
+  level: INFO
+  file_prefix: dialogue_builder
+  console: true
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  datefmt: '%Y-%m-%d %H:%M:%S'
+dedup:
+  enabled: false
+analysis:
+  enabled: false
+multiprocessing:
+  num_processes: 1
