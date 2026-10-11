@@ -19,10 +19,16 @@ import yaml
 
 # ============================================================
 # 路径设置（必须在 core 导入之前）
+#
+# 无论从哪个工作目录运行 `python demo/app.py`，都把以下路径加入 sys.path：
+#   - PROJECT_ROOT → 支持 import scripts_general / demo（HF Spaces 转发入口）
+#   - SCRIPTS_DIR  → 支持 core 内部统一的 `from core.xxx` 导入风格
+#   - DEMO_DIR     → 支持 import generate_demo_data
 # ============================================================
 DEMO_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(DEMO_DIR)
 SCRIPTS_DIR = os.path.join(PROJECT_ROOT, "scripts_general")
+sys.path.insert(0, PROJECT_ROOT)
 sys.path.insert(0, SCRIPTS_DIR)
 sys.path.insert(0, DEMO_DIR)  # 为了 import generate_demo_data
 
