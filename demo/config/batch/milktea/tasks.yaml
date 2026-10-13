@@ -20,8 +20,8 @@ tasks:
       compress_mode: "log"
     case_loader:
       type: "split"
-      replace_dir: "demo/data/cases"
-      system_dir: "demo/data/prompts"
+      replace_dir: "demo/data/case/cases"
+      system_dir: "demo/data/case/prompts"
     case_auto_generate:
       enabled: true
       generator_type: "milktea"

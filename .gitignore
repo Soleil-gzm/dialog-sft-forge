@@ -62,6 +62,7 @@ case_generate*
 combinations*.json
 demo/data/cases/
 demo/data/prompts/
+demo/data/case/
 
 # ---------- 本地 / 敏感配置 ----------
 # 求职笔记等私人文档，禁止提交
