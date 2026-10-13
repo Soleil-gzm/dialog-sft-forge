@@ -37,8 +37,8 @@ excel_path: "demo/data/话术模板.xlsx"          # 话术模板（15 个模块
 # 案例加载器：split 模式（case 数据与 system prompt 分离到两个目录）
 case_loader:
   type: "split"                       # 加载器类型：default（单目录）| split（双目录）
-  replace_dir: "demo/data/cases"      # 占位数据目录（- 字段：值 格式，供 fill_placeholders 替换）
-  system_dir: "demo/data/prompts"     # 系统提示目录（文件全文作为 system 消息，可含 {字段名} 占位符）
+  replace_dir: "demo/data/case/cases"      # 占位数据目录（- 字段：值 格式，供 fill_placeholders 替换）
+  system_dir: "demo/data/case/prompts"     # 系统提示目录（文件全文作为 system 消息，可含 {字段名} 占位符）
 
 
 # ============================================

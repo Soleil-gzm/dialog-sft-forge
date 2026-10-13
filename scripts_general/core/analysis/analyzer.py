@@ -466,3 +466,289 @@ class ModuleDiversityAnalyzer(Analyzer):
             f.write(
                 "- 建议关注 '最大UID占比 > 50%' 的条件，检查 Excel 里的 'parent(继承)' 或 'flexible_stop' 是否限制了随机性。\n"
             )
+
+
+def _normalize_condition(value) -> str:
+    """规范化条件字符串：None / NaN / 空串 → '无条件(空)'"""
+    if value is None:
+        return "无条件(空)"
+    s = str(value)
+    if s.strip() == "" or s.lower() == "nan":
+        return "无条件(空)"
+    return s
+
+
+def _normalize_uid(value) -> str:
+    """规范化 uid：1.0 → '1'，保证 Excel 与 trace 两侧类型一致"""
+    try:
+        f = float(value)
+        if f.is_integer():
+            return str(int(f))
+    except (TypeError, ValueError):
+        pass
+    return str(value)
+
+
+class ModuleCoverageAnalyzer(Analyzer):
+    """
+    模块覆盖率分析器。
+    统计内容：
+      1. 每个模块被访问的对话数 / 总轮次数
+      2. 每个模块内每个条件的话术行覆盖率（已覆盖行 / Excel 总行）
+      3. 每行话术（uid）的抽取次数
+    输出：coverage_report.txt + 条形图（html，需 plotly）
+    """
+
+    def __init__(self, df_dict: Dict, format: str = "html"):
+        self.df_dict = df_dict
+        self.format = format
+
+    def analyze(self, trace_path: str, output_dir: str, **kwargs) -> None:
+        from collections import defaultdict
+
+        if not os.path.exists(trace_path):
+            raise FileNotFoundError(f"Trace file not found: {trace_path}")
+        os.makedirs(output_dir, exist_ok=True)
+
+        with open(trace_path, "r", encoding="utf-8") as f:
+            traces = json.load(f)
+        print(f"Loaded {len(traces)} conversations from {trace_path} (coverage)")
+
+        # ---- 1. 聚合 trace：模块对话数 / 轮次 / 条件×uid 抽取次数 ----
+        module_dialogues = Counter()
+        module_turns = Counter()
+        # module → condition → uid → 次数
+        cond_uid_hits: Dict[str, Dict[str, Counter]] = defaultdict(
+            lambda: defaultdict(Counter)
+        )
+
+        for trace in traces:
+            seen_in_dialogue = set()
+            for mod in trace.get("modules", []):
+                name = mod.get("module")
+                if not name:
+                    continue
+                if name not in seen_in_dialogue:
+                    module_dialogues[name] += 1
+                    seen_in_dialogue.add(name)
+                module_turns[name] += mod.get("turn_count", 0)
+                uid = mod.get("selected_uid", -1)
+                if uid is None or uid == -1:
+                    continue
+                cond = _normalize_condition(mod.get("condition_text"))
+                cond_uid_hits[name][cond][_normalize_uid(uid)] += 1
+
+        # ---- 2. Excel 侧分母：module → condition → [uid, ...] ----
+        excel_rows: Dict[str, Dict[str, List[str]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+        for name, df in self.df_dict.items():
+            for _, row in df.iterrows():
+                cond = _normalize_condition(row.get("conditions(条件)"))
+                excel_rows[name][cond].append(_normalize_uid(row.get("uid")))
+
+        # ---- 3. 文本报告 ----
+        self._write_report(
+            len(traces),
+            module_dialogues,
+            module_turns,
+            cond_uid_hits,
+            excel_rows,
+            os.path.join(output_dir, "coverage_report.txt"),
+        )
+
+        # ---- 4. 条形图 ----
+        if self.format == "html" and HAS_PLOTLY:
+            self._create_charts(
+                module_dialogues, module_turns, cond_uid_hits, excel_rows, output_dir
+            )
+        else:
+            print(f"Format '{self.format}' 不支持或 plotly 缺失，跳过覆盖率图表")
+
+    def _write_report(
+        self,
+        total: int,
+        module_dialogues: Counter,
+        module_turns: Counter,
+        cond_uid_hits: Dict,
+        excel_rows: Dict,
+        report_file: str,
+    ) -> None:
+        all_modules = list(
+            dict.fromkeys(list(excel_rows.keys()) + list(module_dialogues.keys()))
+        )
+        alerts = []
+
+        with open(report_file, "w", encoding="utf-8") as f:
+            f.write("=== 模块覆盖率报告 ===\n")
+            f.write(f"总对话数: {total}\n\n")
+
+            # 一、模块访问统计
+            f.write("一、模块访问统计\n")
+            f.write("-" * 90 + "\n")
+            f.write(
+                f"{'模块':<12} {'对话数':>8} {'对话覆盖率':>10} {'总轮次':>8} {'平均轮次/对话':>12}\n"
+            )
+            f.write("-" * 90 + "\n")
+            for m in all_modules:
+                dlg = module_dialogues.get(m, 0)
+                turns = module_turns.get(m, 0)
+                avg = turns / dlg if dlg else 0
+                f.write(
+                    f"{m:<12} {dlg:>8} {dlg / total:>9.2%} {turns:>8} {avg:>12.2f}\n"
+                )
+
+            # 二、条件与话术行覆盖详情
+            f.write("\n二、条件与话术行覆盖详情\n")
+            for m in all_modules:
+                cond_rows = excel_rows.get(m, {})
+                total_rows = sum(len(v) for v in cond_rows.values())
+                covered_rows = 0
+                for cond, uids in cond_rows.items():
+                    hit = cond_uid_hits.get(m, {}).get(cond, Counter())
+                    covered_rows += sum(1 for u in uids if u in hit)
+                rate = covered_rows / total_rows if total_rows else 0
+                f.write(
+                    f"\n### {m}  (Excel行数: {total_rows}, 已覆盖: {covered_rows}, "
+                    f"行覆盖率: {rate:.2%})\n"
+                )
+                f.write(
+                    f"{'条件':<28} {'行数':>6} {'已覆盖':>6} {'覆盖率':>9} {'抽取总次数':>10}\n"
+                )
+                for cond, uids in cond_rows.items():
+                    hit = cond_uid_hits.get(m, {}).get(cond, Counter())
+                    cov = sum(1 for u in uids if u in hit)
+                    hits_total = sum(hit.values())
+                    f.write(
+                        f"{cond:<28} {len(uids):>6} {cov:>6} "
+                        f"{cov / len(uids):>8.2%} {hits_total:>10}\n"
+                    )
+                    if cov < len(uids):
+                        missing = [u for u in uids if u not in hit]
+                        alerts.append((m, cond, len(uids), cov, missing))
+                # 行级抽取明细
+                f.write("  行级抽取明细:\n")
+                for cond, uids in cond_rows.items():
+                    hit = cond_uid_hits.get(m, {}).get(cond, Counter())
+                    for u in uids:
+                        f.write(f"    uid={u} [{cond}]: {hit.get(u, 0)} 次\n")
+
+            # 三、覆盖率警报
+            f.write("\n三、覆盖率警报（存在未覆盖的话术行）\n")
+            f.write("-" * 90 + "\n")
+            if not alerts:
+                f.write("  所有话术行均被覆盖。\n")
+            else:
+                for m, cond, rows, cov, missing in alerts:
+                    f.write(
+                        f"  [!] {m} / {cond}: {rows} 行仅覆盖 {cov} 行，"
+                        f"未覆盖 uid: {', '.join(missing)}\n"
+                    )
+
+            f.write("\n解读指南:\n")
+            f.write("- '对话覆盖率' = 访问过该模块的对话数 / 总对话数\n")
+            f.write("- '行覆盖率' = 被抽取过的话术行数 / Excel 中该模块该条件的总行数\n")
+            f.write(
+                "- 未覆盖的行通常是条件苛刻（如积分阈值）或继承链（parent）限制导致\n"
+            )
+        print(f"覆盖率报告已保存: {report_file}")
+
+    def _create_charts(
+        self,
+        module_dialogues: Counter,
+        module_turns: Counter,
+        cond_uid_hits: Dict,
+        excel_rows: Dict,
+        output_dir: str,
+    ) -> None:
+        modules = list(
+            dict.fromkeys(list(excel_rows.keys()) + list(module_dialogues.keys()))
+        )
+
+        # 1. 模块级：对话数 + 总轮次（分组条形图）
+        fig = go.Figure(
+            data=[
+                go.Bar(
+                    name="对话数",
+                    x=modules,
+                    y=[module_dialogues.get(m, 0) for m in modules],
+                ),
+                go.Bar(
+                    name="总轮次",
+                    x=modules,
+                    y=[module_turns.get(m, 0) for m in modules],
+                ),
+            ]
+        )
+        fig.update_layout(
+            barmode="group",
+            title="模块访问覆盖（对话数 / 总轮次）",
+            xaxis_title="模块",
+            yaxis_title="次数",
+            template="plotly_white",
+            xaxis_tickangle=-45,
+        )
+        out = os.path.join(output_dir, "coverage_module_bar.html")
+        fig.write_html(out)
+        print(f"保存条形图: {out}")
+
+        # 2. 条件级行覆盖率（%）
+        labels, rates = [], []
+        for m in modules:
+            for cond, uids in excel_rows.get(m, {}).items():
+                hit = cond_uid_hits.get(m, {}).get(cond, Counter())
+                cov = sum(1 for u in uids if u in hit)
+                labels.append(f"{m}|{cond}")
+                rates.append(cov / len(uids) * 100)
+        if labels:
+            fig2 = go.Figure(
+                go.Bar(
+                    x=labels,
+                    y=rates,
+                    text=[f"{r:.0f}%" for r in rates],
+                    textposition="auto",
+                    marker_color="#2ca02c",
+                )
+            )
+            fig2.update_layout(
+                title="各模块条件的话术行覆盖率",
+                xaxis_title="模块|条件",
+                yaxis_title="行覆盖率 (%)",
+                yaxis=dict(range=[0, 110]),
+                template="plotly_white",
+                xaxis_tickangle=-45,
+            )
+            out2 = os.path.join(output_dir, "coverage_condition_bar.html")
+            fig2.write_html(out2)
+            print(f"保存条形图: {out2}")
+
+        # 3. 每个模块的行级抽取次数
+        for m in modules:
+            cond_rows = excel_rows.get(m, {})
+            if not cond_rows:
+                continue
+            labels, counts = [], []
+            for cond, uids in cond_rows.items():
+                hit = cond_uid_hits.get(m, {}).get(cond, Counter())
+                for u in uids:
+                    labels.append(f"uid{u}|{cond}")
+                    counts.append(hit.get(u, 0))
+            figm = go.Figure(
+                go.Bar(
+                    x=labels,
+                    y=counts,
+                    text=counts,
+                    textposition="auto",
+                    marker_color="#1f77b4",
+                )
+            )
+            figm.update_layout(
+                title=f"模块[{m}] 话术行抽取次数",
+                xaxis_title="uid|条件",
+                yaxis_title="抽取次数",
+                template="plotly_white",
+                xaxis_tickangle=-45,
+            )
+            outm = os.path.join(output_dir, f"coverage_rows_{m}.html")
+            figm.write_html(outm)
+        print(f"保存 {len(modules)} 个模块的行级抽取条形图")

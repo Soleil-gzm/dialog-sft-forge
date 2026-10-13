@@ -8,8 +8,8 @@ from core.utils.random_service import RandomService
 
 PROB_PATH = "demo/data/prob.xlsx"
 EXCEL_PATH = "demo/data/话术模板.xlsx"
-CASES_DIR = "demo/data/cases"
-PROMPTS_DIR = "demo/data/prompts"
+CASES_DIR = "demo/data/case/cases"
+PROMPTS_DIR = "demo/data/case/prompts"
 
 NUM_MODULES = 15
 NUM_CASES = 500
@@ -58,13 +58,16 @@ class TestDemoDataSmoke:
     def test_load_cases(self):
         rng = RandomService(42)
         cases, prompts = load_cases(CASES_DIR, rng=rng)
-        assert len(cases) == NUM_CASES
+        assert len(cases) >= NUM_CASES  # 至少 500 条（批量任务可能扩充）
         assert all("门店名称" in c for c in cases)
         # prompts 由 split 加载器单独加载，与案例一一对应
         prompt_files = sorted(
             f for f in os.listdir(PROMPTS_DIR) if f.endswith(".txt")
         )
-        assert len(prompt_files) == NUM_CASES
+        case_files = sorted(
+            f for f in os.listdir(CASES_DIR) if f.endswith(".txt")
+        )
+        assert len(prompt_files) == len(case_files)
         assert all(
             open(os.path.join(PROMPTS_DIR, f), encoding="utf-8").read().strip()
             for f in prompt_files

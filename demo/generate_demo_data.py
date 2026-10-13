@@ -5,9 +5,9 @@
 从单一模块图与话术定义出发，自动产出完整数据集：
   - demo/data/话术模板.xlsx   (15 个模块 sheet + 链接促销话术 sheet，8 列)
   - demo/data/prob.xlsx       (由模块图 EDGES 自动派生的 15×15 概率矩阵)
-  - demo/data/cases/          (500 个案例，- 字段：值 逐行格式)
-  - demo/data/prompts/        (500 个与案例一一对应的 system prompt)
-  - demo/demo_config.yaml     (split 加载器，5000 条对话规模)
+  - demo/data/case/cases/     (500 个案例，- 字段：值 逐行格式)
+  - demo/data/case/prompts/   (500 个与案例一一对应的 system prompt)
+  - demo/config/demo_config.yaml     (split 加载器，5000 条对话规模)
 
 所有数据均为虚构，固定种子 SEED=42，可复现。
 
@@ -28,8 +28,8 @@ SEED = 42
 # 目录路径（基于本文件位置，不依赖 cwd）
 DEMO_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(DEMO_DIR, "data")
-CASES_DIR = os.path.join(DATA_DIR, "cases")
-PROMPTS_DIR = os.path.join(DATA_DIR, "prompts")
+CASES_DIR = os.path.join(DATA_DIR, "case", "cases")
+PROMPTS_DIR = os.path.join(DATA_DIR, "case", "prompts")
 
 # 8 列结构（与 core/data/data_loader.py keep_cols 一致）
 COLUMNS = [
@@ -497,8 +497,8 @@ DEMO_CONFIG = {
 
     "case_loader": {
         "type": "split",
-        "replace_dir": "demo/data/cases",
-        "system_dir": "demo/data/prompts",
+        "replace_dir": "demo/data/case/cases",
+        "system_dir": "demo/data/case/prompts",
     },
 
     "a_set": A_SET,
@@ -548,7 +548,7 @@ DEMO_CONFIG = {
 
 
 def generate_config():
-    path = os.path.join(DEMO_DIR, "demo_config.yaml")
+    path = os.path.join(DEMO_DIR, "config", "demo_config.yaml")
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(DEMO_CONFIG, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
     print(f"  生成: {path}（{NUM_DIALOGUES} 条规模）")
@@ -581,7 +581,7 @@ def main():
     print()
     print("=== 全部生成完成 ===")
     print("生成 5000 条对话:")
-    print("  python scripts_general/main.py -c demo/demo_config.yaml")
+    print("  python scripts_general/main.py -c demo/config/demo_config.yaml")
 
 
 if __name__ == "__main__":

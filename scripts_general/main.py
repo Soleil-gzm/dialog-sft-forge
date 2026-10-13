@@ -227,6 +227,16 @@ def run(config_path: str, force: bool = False) -> None:
                 div_analyzer = ModuleDiversityAnalyzer(modules=diversity_modules)
                 div_analyzer.analyze(trace_file, analysis_output)
                 logger.info(f"模块多样性分析完成，报告保存在 {analysis_output}")
+
+            # 模块覆盖率分析（由 analysis.coverage_enabled 开关控制）
+            if config.get("analysis.coverage_enabled", False):
+                from core.analysis.analyzer import ModuleCoverageAnalyzer
+
+                cov_analyzer = ModuleCoverageAnalyzer(
+                    df_dict=df_dict, format=plot_format
+                )
+                cov_analyzer.analyze(trace_file, analysis_output)
+                logger.info(f"模块覆盖率分析完成，报告保存在 {analysis_output}")
         except Exception as e:
             logger.error(f"自动分析失败: {e}", exc_info=True)
     elif config.get("analysis.enabled", False):
