@@ -12,7 +12,7 @@ logger = logging.getLogger("DialogueBuilder")
 
 
 class PressureManager:
-    """管理施压话术模块，支持 repeat、继承、条件、随机后代链"""
+    """管理促销话术模块，支持 repeat、继承、条件、随机后代链"""
 
     def __init__(self, pressure_df: pd.DataFrame, rng: RandomService, config: Config):
         self.df = pressure_df
@@ -39,20 +39,20 @@ class PressureManager:
         module_name: str = None,
     ) -> Tuple[List[Dict[str, str]], bool, bool]:
         """
-        根据 repeat 次数从施压话术表中抽取一个话术片段（可能包含多轮）。
+        根据 repeat 次数从促销话术表中抽取一个话术片段（可能包含多轮）。
         返回 (segment_list, has_customer_first, flexible_stopped), 其中 segment_list 每个元素为 {"user": str, "assistant": str}
             has_customer_first 表示片段第一轮是否有客户话术（用于外部拼接逻辑）。
 
-        注意：如果请求的 repeat 超过施压话术表支持的最大次数，直接返回空片段，不降级。
+        注意：如果请求的 repeat 超过促销话术表支持的最大次数，直接返回空片段，不降级。
         """
         if self.df.empty:
             return [], False, False
 
-        # 如果请求的 repeat 超过施压话术表最大支持次数，直接返回空（不降级）
+        # 如果请求的 repeat 超过促销话术表最大支持次数，直接返回空（不降级）
         if repeat > self.max_repeat:
             if module_name:
                 logger.debug(
-                    f"模块 '{module_name}' 请求 repeat={repeat} 超过话术表最大 repeat={self.max_repeat}，跳过施压"
+                    f"模块 '{module_name}' 请求 repeat={repeat} 超过话术表最大 repeat={self.max_repeat}，跳过促销"
                 )
             return [], False, False
 

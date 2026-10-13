@@ -1,5 +1,5 @@
 """
-施压概率策略模块：根据配置选择不同的 t 值计算方法，用于动态概率计算。
+促销概率策略模块：根据配置选择不同的 t 值计算方法，用于动态概率计算。
 """
 
 from abc import ABC, abstractmethod
@@ -9,7 +9,7 @@ import numpy as np
 
 
 class PressureStrategy(ABC):
-    """施压概率策略抽象基类"""
+    """促销概率策略抽象基类"""
 
     @abstractmethod
     def get_normalized_position(self, idx: int, total: int, **kwargs) -> float:

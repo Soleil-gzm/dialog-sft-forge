@@ -16,12 +16,12 @@ tasks:
     prob_path: "demo/data/prob.xlsx"
     prob_auto_generate:
       enabled: true
-      categories_yaml: "demo/categories.yaml"
+      categories_yaml: "demo/config/categories.yaml"
       compress_mode: "log"
     case_loader:
       type: "split"
-      replace_dir: "demo/data/case/replace"
-      system_dir: "demo/data/case/system"
+      replace_dir: "demo/data/cases"
+      system_dir: "demo/data/prompts"
     case_auto_generate:
       enabled: true
       generator_type: "milktea"

@@ -37,12 +37,12 @@ class DialogueBuilder:
         self.trace_enabled = config.get("trace_enabled", False)
         self.trace_collector = TraceCollector(self.trace_enabled)
 
-        # 动态施压话术配置
+        # 动态促销话术配置
         self.pressure_dynamic_enabled = config.get("pressure_dynamic_enabled", True)
         self.pressure_max_total = config.get("pressure_max_total", 3)
         self.module_pressure_weights = config.get("module_pressure_weights", {})
         self.pressure_strategy = create_pressure_strategy(config)
-        # 施压概率计算器
+        # 促销概率计算器
         self.pressure_prob_calc = create_probability_calculator(config, "pressure")
 
         # 动态再见概率配置
@@ -102,7 +102,7 @@ class DialogueBuilder:
         segment: List[Dict[str, str]],
         merge_last: bool = False,
     ) -> None:
-        """将施压话术片段追加到对话消息列表中
+        """将促销话术片段追加到对话消息列表中
             Args:
         messages: 当前对话消息列表（会被原地修改）
         segment: 话术片段，每个元素为 {"user": str, "assistant": str}
@@ -330,7 +330,7 @@ class DialogueBuilder:
         if self.pressure_count >= self.pressure_max_total:
             return
 
-        # 计算施压概率
+        # 计算促销概率
         if self.pressure_dynamic_enabled and total > 1:
             t = self.pressure_strategy.get_normalized_position(idx, total)
             base_prob = self.pressure_prob_calc.calculate(t)
@@ -339,7 +339,7 @@ class DialogueBuilder:
         else:
             prob = self.pressure_prob
 
-        # 记录跳过施压
+        # 记录跳过促销
         if self.rng.random() > prob:
             self.trace_collector.set_module_pressure(
                 self._current_module_trace,
@@ -363,7 +363,7 @@ class DialogueBuilder:
         else:
             self._append_segment(messages, pressure_segment, merge_last=False)
 
-        # 记录施压应用信息
+        # 记录促销应用信息
         self.trace_collector.set_module_pressure(
             self._current_module_trace,
             applied=True,
@@ -404,7 +404,7 @@ class DialogueBuilder:
                 overall_stop_reason = stop_reason
                 break
 
-            # 施压话术（在正常提交后附加）
+            # 促销话术（在正常提交后附加）
             self._apply_pressure(node, repeat, case, messages, idx, total_modules)
 
         else:

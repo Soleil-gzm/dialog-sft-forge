@@ -7,7 +7,7 @@ from core.utils.random_service import RandomService
 
 
 def _make_generator(seed: int = 42) -> PathGenerator:
-    config_dict = load_config("demo/demo_config.yaml").to_dict()
+    config_dict = load_config("demo/config/demo_config.yaml").to_dict()
     config_dict.pop("paths_cache", None)  # 测试不读写缓存文件
     config = Config(config_dict)
     prob_df, modules = load_prob_matrix("demo/data/prob.xlsx")

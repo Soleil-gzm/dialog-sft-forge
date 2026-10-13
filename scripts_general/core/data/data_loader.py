@@ -37,7 +37,7 @@ def load_sheets(
         raise ValueError(f"Excel 缺少 prob 表要求的模块 sheet: {missing}")
 
     # 提示：Excel 中有 prob 表未定义的 sheet（忽略）
-    known_extra = {"链接施压话术", "逻辑"}
+    known_extra = {"链接促销话术", "逻辑"}
     extra = excel_sheets - set(modules) - known_extra
     if extra:
         logger.warning(f"Excel 中有 prob 表未定义的 sheet（已忽略）: {extra}")

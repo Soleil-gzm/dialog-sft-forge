@@ -1,5 +1,5 @@
 """
-施压话术子包
+促销话术子包
 """
 
 from .pressure_manager import PressureManager

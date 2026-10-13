@@ -36,25 +36,9 @@ from core.utils.random_service import RandomService
 
 
 # ==================== 主函数 ====================
-def main():
-    parser = argparse.ArgumentParser(description="多轮对话生成脚本")
-    parser.add_argument(
-        "-c",
-        "--config",
-        type=str,
-        default="demo/demo_config.yaml",
-        help="配置文件路径（默认: demo/demo_config.yaml）",
-    )
-    parser.add_argument(
-        "-f",
-        "--force",
-        action="store_true",
-        help="强制重新生成，忽略已完成的分片（删除旧分片文件）",
-    )
-    args = parser.parse_args()
-
+def run(config_path: str, force: bool = False) -> None:
+    """根据配置文件路径执行对话生成（供批量运行器等外部调用）"""
     # 1. 加载配置
-    config_path = args.config
     config = load_config(config_path)
 
     # 2. 读取基本参数（兼容旧版 num_paths）
@@ -116,14 +100,14 @@ def main():
     excel_path = config.get("excel_path")
     df_dict = load_sheets(excel_path, modules)
 
-    # 8. 加载施压话术表（所有进程共用）
-    pressure_sheet_name = config.get("pressure_sheet_name", "链接话术")
+    # 8. 加载促销话术表（所有进程共用）
+    pressure_sheet_name = config.get("pressure_sheet_name", "链接促销话术")
     try:
         pressure_df = pd.read_excel(excel_path, sheet_name=pressure_sheet_name)
-        logger.info(f"加载施压话术表: {pressure_sheet_name}")
+        logger.info(f"加载促销话术表: {pressure_sheet_name}")
     except ValueError:
         pressure_df = pd.DataFrame()
-        logger.warning(f"施压话术表 '{pressure_sheet_name}' 不存在，将跳过施压话术")
+        logger.warning(f"促销话术表 '{pressure_sheet_name}' 不存在，将跳过促销话术")
 
     # 9. 时间生成器与案例加载
     time_gen = create_time_generator(config)
@@ -167,7 +151,7 @@ def main():
         trace_enabled=trace_enabled,
         checkpoint_interval=checkpoint_interval,
         logger=logger,
-        force_regenerate=args.force,
+        force_regenerate=force,
     )
 
     # 10. 对话相邻去重（默认开启）
@@ -247,6 +231,25 @@ def main():
             logger.error(f"自动分析失败: {e}", exc_info=True)
     elif config.get("analysis.enabled", False):
         logger.warning("trace 文件不存在，跳过自动分析")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="多轮对话生成脚本")
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        default="demo/config/demo_config.yaml",
+        help="配置文件路径（默认: demo/config/demo_config.yaml）",
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="强制重新生成，忽略已完成的分片（删除旧分片文件）",
+    )
+    args = parser.parse_args()
+    run(args.config, force=args.force)
 
 
 if __name__ == "__main__":

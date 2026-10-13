@@ -36,7 +36,7 @@ sys.path.insert(0, DEMO_DIR)  # 为了 import generate_demo_data
 # 自动生成 demo 数据（如果缺失）
 # ============================================================
 DATA_DIR = os.path.join(DEMO_DIR, "data")
-CONFIG_PATH = os.path.join(DEMO_DIR, "demo_config.yaml")
+CONFIG_PATH = os.path.join(DEMO_DIR, "config", "demo_config.yaml")
 
 
 def ensure_demo_data():

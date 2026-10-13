@@ -114,8 +114,8 @@ def analyze_traces_data(traces: List[Dict]) -> Dict:
                 else:
                     goodbye_normalized.append(0.0)
 
-        # ---- 施压相关统计（兼容新旧字段） ----
-        # 检查是否有任何施压（优先使用 triggered，若没有则回退到 applied）
+        # ---- 促销相关统计（兼容新旧字段） ----
+        # 检查是否有任何促销（优先使用 triggered，若没有则回退到 applied）
         has_pressure = False
         for mod in modules:
             pressure = mod.get("pressure", {})
@@ -129,7 +129,7 @@ def analyze_traces_data(traces: List[Dict]) -> Dict:
         else:
             dialogue_without_pressure += 1
 
-        # 施压位置（同样兼容）
+        # 促销位置（同样兼容）
         for idx, mod in enumerate(modules):
             pressure = mod.get("pressure", {})
             if pressure.get("applied", False):
@@ -165,7 +165,7 @@ class DefaultAnalyzer(Analyzer):
         with open(output_file, "w", encoding="utf-8") as f:
             f.write("=== Trace Analysis Report ===\n")
             f.write(f"Total conversations: {stats['total_conversations']}\n")
-            # 新增施压对话统计
+            # 新增促销对话统计
             f.write(f"Conversations with pressure: {stats['dialogue_with_pressure']}\n")
             f.write(
                 f"Conversations without pressure: {stats['dialogue_without_pressure']}\n"
@@ -263,11 +263,11 @@ class DefaultAnalyzer(Analyzer):
         print(f"保存条形图: {output_html}")
 
     def _create_pie_chart(self, stats: Dict, output_html: str):
-        """生成施压覆盖率的饼图"""
+        """生成促销覆盖率的饼图"""
         if not HAS_PLOTLY:
             print("Plotly 未安装，无法生成饼图")
             return
-        labels = ["有施压的对话", "无施压的对话"]
+        labels = ["有促销的对话", "无促销的对话"]
         values = [stats["dialogue_with_pressure"], stats["dialogue_without_pressure"]]
         fig = go.Figure(
             data=[
@@ -281,7 +281,7 @@ class DefaultAnalyzer(Analyzer):
             ]
         )
         fig.update_layout(
-            title="施压话术覆盖情况 (对话级别)",
+            title="促销话术覆盖情况 (对话级别)",
             template="plotly_white",
         )
         fig.write_html(output_html)
@@ -340,7 +340,7 @@ class DefaultAnalyzer(Analyzer):
             os.path.join(output_dir, "goodbye_handling_bar.html"),
         )
 
-        # 新增：施压覆盖饼图
+        # 新增：促销覆盖饼图
         self._create_pie_chart(
             stats,
             os.path.join(output_dir, "pressure_coverage_pie.html"),
