@@ -1,0 +1,176 @@
+# ============================================
+# 奶茶店会员回访 Demo 配置
+# 基于完整配置模板，使用完全虚构的奶茶店场景
+# 所有数据由 demo/generate_demo_data.py 生成，可复现
+# ============================================
+
+
+# ============================================
+# 1. 项目基础配置
+# ============================================
+company: "milktea_demo"                          # 业务标识（仅用于日志和命名）
+start_module: "身份确认"                          # 对话起始模块（必须在 prob 表行列中存在）
+task_name: "milktea_member_callback"             # 任务名称（输出子目录为 {task_name}_{num_paths}_{seed}）
+output_dir: "output"                            # 根输出目录
+paths_cache_dir: "paths_demo"                   # 路径缓存子目录（相对于 output_dir）
+paths_cache: "output/paths_demo/all_paths_{num_paths}_{seed}.json"  # 缓存文件模板
+
+
+# ============================================
+# 2. 生成规模与随机性
+# ============================================
+num_paths: 5000                        # 要生成的对话数量（兼容旧配置名）
+num_dialogues: 5000                    # 同 num_paths（新名）
+num_paths_to_generate: 5000            # 同 num_paths（备用名）
+random_seed: 42                        # 全局随机种子（相同种子 → 完全一致的输出）
+checkpoint_interval: 1000              # 断点续传保存间隔（每生成 N 条保存一次）
+
+
+# ============================================
+# 3. 数据文件路径
+# ============================================
+# prob 表是模块的唯一来源：modules 从 prob 表行/列名自动提取
+# Excel 话术模板的 sheet 名必须与 prob 表模块名一致
+prob_path: "demo/data/prob.xlsx"              # 概率转移矩阵（15×15，由 excel2prob + categories.yaml 生成）
+excel_path: "demo/data/话术模板.xlsx"          # 话术模板（15 个模块 sheet + 链接促销话术 sheet，8 列）
+
+# 案例加载器：split 模式（case 数据与 system prompt 分离到两个目录）
+case_loader:
+  type: "split"                       # 加载器类型：default（单目录）| split（双目录）
+  replace_dir: "demo/data/cases"      # 占位数据目录（- 字段：值 格式，供 fill_placeholders 替换）
+  system_dir: "demo/data/prompts"     # 系统提示目录（文件全文作为 system 消息，可含 {字段名} 占位符）
+
+
+# ============================================
+# 4. 模块定义与业务规则
+# ============================================
+# modules: 自动从 prob 表提取，无需配置
+# max_repeat: 自动从 Excel 的 repeat(次数) 列提取
+
+# A 集：路径中只能出现一个 A 集模块（流失类，客户问题原因）
+a_set:
+  - "流失风险"
+  - "投诉处理"
+
+# B 集：可在路径中多次出现（对话过程模块）
+b_set:
+  - "身份确认"
+  - "身份核实"
+  - "积分告知"
+  - "权益介绍"
+  - "活动推荐"
+  - "无意愿"
+  - "犹豫跟进"
+  - "承诺到店"
+  - "预约到店"
+
+# 终止模块（路径遇到这些模块时停止扩展）
+terminal_modules:
+  - "已到店"
+  - "明确拒绝"
+  - "通话结束"
+
+# 自循环模块：独立于正常路径，只在自身循环
+# 格式：模块名: 该模块路径在所有路径中的占比概率
+self_loop_modules:
+  语音留言: 0.05                      # 5% 的路径会是语音留言（客户未接听）
+
+# 需要附加促销话术的模块（当这些模块出现在路径中时，可能触发促销插入）
+insert_nodes:
+  - "活动推荐"
+  - "流失风险"
+
+
+# ============================================
+# 5. 促销话术配置（对应催收场景的施压话术）
+# ============================================
+# 促销话术 sheet 名（在话术模板 Excel 中的 sheet 名，结构同 8 列）
+pressure_sheet_name: "链接促销话术"      # 替代催收的"链接施压话术"
+
+# 固定促销概率（仅在 pressure_dynamic_enabled=false 时使用）
+pressure_prob: 0.3
+
+# 动态促销概率开关
+pressure_dynamic_enabled: true
+
+# ---- 动态概率曲线参数 ----
+pressure_calc_type: "exponential"     # 曲线类型：exponential | sigmoid | linear
+pressure_start_prob: 0.05             # 路径开头基础概率（0~1）
+pressure_end_prob: 0.6                # 路径末尾基础概率（0~1）
+pressure_curve_exponent: 2.0          # 指数（越大后期增长越快，建议 1~5）
+
+# ---- 促销次数与位置策略 ----
+pressure_max_total: 3                 # 每条对话最多插入促销话术次数
+
+# 促销位置策略：控制概率计算时的归一化位置 t
+pressure_strategy:
+  type: "normalized"                  # normalized | absolute | sigmoid | linear_decay
+
+# 模块权重（乘数）：仅对 insert_nodes 中的模块生效
+# 权重 > 1 增加促销概率，< 1 降低
+module_pressure_weights:
+  活动推荐: 1.2                        # 活动推荐时插入促销概率更高
+  流失风险: 1.0
+
+
+# ============================================
+# 6. 再见终止与继承链配置
+# ============================================
+# 继承链停止概率（后代链遇到 flexible_stop=1 时提前停止的概率）
+flexible_stop_prob: 0.3
+
+# 再见终止（固定概率，动态再见未启用时使用此值）
+goodbye_termination_prob: 0.7
+
+# 动态再见概率配置（与促销概率独立控制）
+goodbye_dynamic_enabled: true          # 是否启用动态再见概率
+goodbye_calc_type: "exponential"       # 曲线类型：exponential | sigmoid | linear
+goodbye_start_prob: 0.05               # 路径开头再见概率（0~1）
+goodbye_end_prob: 0.8                  # 路径末尾再见概率（0~1）
+goodbye_exponent: 3.0                  # 指数（越大后期增长越快，建议 1~5）
+goodbye_min_idx: 2                     # 强制忽略前 N 个模块的再见（索引从 0 开始）
+
+
+# ============================================
+# 7. 解析器配置
+# ============================================
+time_generator:
+  type: "simple_natural"              # 时间生成器：simple_natural（随机生成自然口语化时间）
+
+
+# ============================================
+# 8. 追踪与日志
+# ============================================
+trace_enabled: false                   # 是否生成详细追踪 JSON（Demo 关闭，减少输出）
+logging:
+  level: "INFO"                        # 日志级别：DEBUG | INFO | WARNING | ERROR
+  file_prefix: "dialogue_builder"      # 日志文件名前缀
+  console: true                        # 是否同时输出到控制台
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  datefmt: "%Y-%m-%d %H:%M:%S"
+
+
+# ============================================
+# 9. 对话去重配置
+# ============================================
+dedup:
+  enabled: false                       # Demo 关闭去重（保留全量数据供 SFT 使用）
+  # threshold: 0.85                   # 相似度阈值（0~1，越高越严格）
+  # ignore_numbers: true              # 比较时忽略数字
+  # output_suffix: "_dup"             # 去重后文件名后缀
+
+
+# ============================================
+# 10. 分析配置
+# ============================================
+analysis:
+  enabled: false                       # Demo 关闭自动分析
+  # format: "html"                   # 图表格式：html（需 plotly）| png（需 matplotlib）
+  # diversity_modules: []            # 模块多样性分析
+
+
+# ============================================
+# 11. 多进程配置
+# ============================================
+multiprocessing:
+  num_processes: 1                    # 1=单进程串行，>1=多进程并行

@@ -1,0 +1,124 @@
+# ============================================
+# 奶茶店会员回访 - 批量任务基础配置
+# 所有任务共用此配置，task YAML 通过 `base: base.yaml` 引用
+# ============================================
+
+company: "milktea_demo"
+
+# 起始模块（99% 正常回访，1% 语音留言）
+start_module:
+  身份确认: 0.99
+  语音留言: 0.01
+
+output_dir: "output/batch"
+paths_cache_dir: "paths"
+paths_cache: "output/batch/paths/all_paths_{num_paths}_{seed}.json"
+checkpoint_interval: 50000
+
+# ============================================
+# 话术抽样策略（加权混合）
+# ============================================
+# 权重公式：w = (1 + alpha * (n_terms - 1)) / sqrt(同类行数)
+#   - n_terms：该行的条件项数（0=无条件，1=基础条件，2+=特定）
+#   - 同类行数：稀释数量多的层，避免垄断
+#   - alpha：控制特定项的放大倍数
+condition_complexity_alpha: 1.0
+
+# ============================================
+# 模块定义与业务规则
+# ============================================
+
+# A 集：路径中只能出现一个 A 集模块（流失类，客户问题原因）
+a_set:
+  - "流失风险"
+  - "投诉处理"
+
+# B 集：可在路径中多次出现（对话过程模块）
+b_set:
+  - "身份确认"
+  - "身份核实"
+  - "积分告知"
+  - "权益介绍"
+  - "活动推荐"
+  - "无意愿"
+  - "犹豫跟进"
+  - "承诺到店"
+  - "预约到店"
+
+# 终止模块（路径遇到这些模块时停止扩展）
+terminal_modules:
+  - "已到店"
+  - "明确拒绝"
+  - "通话结束"
+
+# 自循环模块：独立于正常路径，只在自身循环
+self_loop_modules:
+  语音留言: 0.05                    # 5% 的路径是语音留言（客户未接听）
+
+# 需要附加促销话术的模块
+insert_nodes:
+  - "活动推荐"
+  - "流失风险"
+
+# ============================================
+# 促销话术配置
+# ============================================
+pressure_sheet_name: "链接促销话术"
+pressure_prob: 0.3
+pressure_dynamic_enabled: true
+pressure_calc_type: "exponential"
+pressure_start_prob: 0.05
+pressure_end_prob: 0.6
+pressure_curve_exponent: 2.0
+pressure_max_total: 3
+pressure_strategy:
+  type: "normalized"
+module_pressure_weights:
+  活动推荐: 1.2
+  流失风险: 1.0
+
+# ============================================
+# 再见终止与继承链配置
+# ============================================
+flexible_stop_prob: 0.3
+goodbye_termination_prob: 0.7
+goodbye_dynamic_enabled: true
+goodbye_calc_type: "exponential"
+goodbye_start_prob: 0.05
+goodbye_end_prob: 0.8
+goodbye_exponent: 3.0
+goodbye_min_idx: 2
+
+# ============================================
+# 解析器/日志/去重/分析/多进程
+# ============================================
+time_generator:
+  type: "simple_natural"
+
+trace_enabled: true
+logging:
+  level: "INFO"
+  file_prefix: "dialogue_builder"
+  console: true
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  datefmt: "%Y-%m-%d %H:%M:%S"
+
+dedup:
+  enabled: true
+  threshold: 0.85
+  ignore_numbers: true
+  output_suffix: "_dup"
+
+analysis:
+  enabled: true
+  format: "html"
+  diversity_modules:
+    - "积分告知"
+    - "活动推荐"
+    - "无意愿"
+    - "承诺到店"
+    - "流失风险"
+  coverage_enabled: true
+
+multiprocessing:
+  num_processes: 4
