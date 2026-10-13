@@ -1,0 +1,79 @@
+# ============================================
+# 奶茶店会员回访 - 批量任务列表
+# 每个任务仅需写差异化配置，其余继承 base.yaml
+# ============================================
+
+base: "base.yaml"
+
+tasks:
+  # ---------- 1. VIP 会员回访 ----------
+  - name: "VIP会员回访"
+    enabled: true
+    task_name: "milktea_vip_callback"
+    num_paths: 2000
+    random_seed: 11
+    excel_path: "demo/data/话术模板.xlsx"
+    prob_path: "demo/data/prob.xlsx"
+    prob_auto_generate:
+      enabled: true
+      categories_yaml: "demo/categories.yaml"
+      compress_mode: "log"
+    case_loader:
+      type: "split"
+      replace_dir: "demo/data/case/replace"
+      system_dir: "demo/data/case/system"
+    case_auto_generate:
+      enabled: true
+      generator_type: "milktea"
+      num_cases: 2000
+      prompt_system_path: "demo/prompt/system.txt"
+      prompt_replace_path: "demo/prompt/replace.txt"
+      force_regenerate: false
+
+  # # ---------- 2. 普通会员回访 ----------
+  # - name: "普通会员回访"
+  #   enabled: true
+  #   task_name: "milktea_regular_callback"
+  #   num_paths: 2000
+  #   random_seed: 22
+  #   excel_path: "demo/data/话术模板.xlsx"
+  #   prob_path: "demo/data/prob.xlsx"
+  #   prob_auto_generate:
+  #     enabled: true
+  #     categories_yaml: "demo/categories.yaml"
+  #     compress_mode: "log"
+  #   case_loader:
+  #     type: "split"
+  #     replace_dir: "demo/data/cases"
+  #     system_dir: "demo/data/prompts"
+  #   case_auto_generate:
+  #     enabled: true
+  #     generator_type: "milktea"
+  #     num_cases: 2000
+  #     prompt_system_path: "demo/prompt/system.txt"
+  #     prompt_replace_path: "demo/prompt/replace.txt"
+  #     force_regenerate: false
+
+  # # ---------- 3. 流失风险挽回 ----------
+  # - name: "流失风险挽回"
+  #   enabled: true
+  #   task_name: "milktea_churn_rescue"
+  #   num_paths: 1000
+  #   random_seed: 33
+  #   excel_path: "demo/data/话术模板.xlsx"
+  #   prob_path: "demo/data/prob.xlsx"
+  #   prob_auto_generate:
+  #     enabled: true
+  #     categories_yaml: "demo/categories.yaml"
+  #     compress_mode: "log"
+  #   case_loader:
+  #     type: "split"
+  #     replace_dir: "demo/data/cases"
+  #     system_dir: "demo/data/prompts"
+  #   case_auto_generate:
+  #     enabled: true
+  #     generator_type: "milktea"
+  #     num_cases: 1000
+  #     prompt_system_path: "demo/prompt/system.txt"
+  #     prompt_replace_path: "demo/prompt/replace.txt"
+  #     force_regenerate: false
