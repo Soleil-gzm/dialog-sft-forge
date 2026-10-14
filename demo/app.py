@@ -162,9 +162,9 @@ def on_generate(num_dialogues, seed):
         logger.error(f"生成失败: {e}", exc_info=True)
         return [], json.dumps({"error": str(e)}), f"生成失败: {e}", gr.update(choices=[], value=None), gr.update(visible=False)
 
-    # 路径展示
+    # 路径展示（纯文本，每条路径独占一行）
     paths_text = "\n".join(
-        f"**路径 {i+1}** ({d['case_file']}): {' → '.join(d['path'])}"
+        f"路径 {i+1:>2} [{d['case_file']}]  {' → '.join(d['path'])}"
         for i, d in enumerate(dialogues)
     )
 
@@ -277,7 +277,12 @@ def create_demo():
 
         with gr.Row(visible=False) as result_row:
             with gr.Column(scale=1):
-                paths_display = gr.Markdown(label="生成路径")
+                paths_display = gr.Code(
+                    label="生成路径（每行一条）",
+                    interactive=False,
+                    lines=18,
+                    wrap_lines=True,
+                )
                 dialogue_selector = gr.Radio(
                     label="选择对话查看",
                     choices=[],
