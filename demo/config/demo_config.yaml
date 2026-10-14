@@ -166,7 +166,6 @@ dedup:
 analysis:
   enabled: false                       # Demo 关闭自动分析
   # format: "html"                   # 图表格式：html（需 plotly）| png（需 matplotlib）
-  # diversity_modules: []            # 模块多样性分析
 
 
 # ============================================

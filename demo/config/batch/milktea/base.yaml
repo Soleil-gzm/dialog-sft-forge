@@ -112,12 +112,6 @@ dedup:
 analysis:
   enabled: true
   format: "html"
-  diversity_modules:
-    - "积分告知"
-    - "活动推荐"
-    - "无意愿"
-    - "承诺到店"
-    - "流失风险"
   coverage_enabled: true
 
 multiprocessing:

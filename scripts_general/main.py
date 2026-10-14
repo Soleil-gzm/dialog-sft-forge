@@ -219,15 +219,6 @@ def run(config_path: str, force: bool = False) -> None:
             analyzer.analyze(trace_file, analysis_output)
             logger.info(f"自动分析完成，报告保存在 {analysis_output}")
 
-            # 模块多样性分析
-            diversity_modules = config.get("analysis.diversity_modules", [])
-            if diversity_modules:
-                from core.analysis.analyzer import ModuleDiversityAnalyzer
-
-                div_analyzer = ModuleDiversityAnalyzer(modules=diversity_modules)
-                div_analyzer.analyze(trace_file, analysis_output)
-                logger.info(f"模块多样性分析完成，报告保存在 {analysis_output}")
-
             # 模块覆盖率分析（由 analysis.coverage_enabled 开关控制）
             if config.get("analysis.coverage_enabled", False):
                 from core.analysis.analyzer import ModuleCoverageAnalyzer

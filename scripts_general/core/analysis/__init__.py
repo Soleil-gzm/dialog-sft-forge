@@ -5,12 +5,10 @@
 """
 
 from .analyze_module_diversity import analyze_module_diversity
-from .analyzer import (DefaultAnalyzer, ModuleDiversityAnalyzer,
-                       extract_timestamp_from_filename)
+from .analyzer import DefaultAnalyzer, extract_timestamp_from_filename
 
 __all__ = [
     "analyze_module_diversity",
     "DefaultAnalyzer",
-    "ModuleDiversityAnalyzer",
     "extract_timestamp_from_filename",
 ]
