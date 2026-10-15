@@ -1,0 +1,83 @@
+{
+  "members": {
+    "M1001": {
+      "name": "李雪",
+      "gender": "女士",
+      "level": "VIP",
+      "points": 1250,
+      "points_expire": "2026-12-31",
+      "last_purchase_amount": 35,
+      "phone": "138****0001",
+      "register_date": "2024-03-12"
+    },
+    "M1002": {
+      "name": "王强",
+      "gender": "先生",
+      "level": "普通",
+      "points": 380,
+      "points_expire": "2026-11-15",
+      "last_purchase_amount": 20,
+      "phone": "139****0002",
+      "register_date": "2025-01-08"
+    },
+    "M1003": {
+      "name": "张敏",
+      "gender": "女士",
+      "level": "VIP",
+      "points": 2100,
+      "points_expire": "2027-01-20",
+      "last_purchase_amount": 48,
+      "phone": "137****0003",
+      "register_date": "2023-11-25"
+    },
+    "M1004": {
+      "name": "陈昊",
+      "gender": "先生",
+      "level": "普通",
+      "points": 90,
+      "points_expire": "2026-12-01",
+      "last_purchase_amount": 12,
+      "phone": "135****0004",
+      "register_date": "2025-06-30"
+    }
+  },
+  "purchase_history": {
+    "M1001": [
+      { "date": "2026-09-12", "product": "茉莉奶绿", "amount": 18 },
+      { "date": "2026-09-28", "product": "芝士葡萄", "amount": 17 }
+    ],
+    "M1002": [
+      { "date": "2026-08-20", "product": "珍珠奶茶", "amount": 20 }
+    ],
+    "M1003": [
+      { "date": "2026-09-05", "product": "桂花乌龙", "amount": 22 },
+      { "date": "2026-09-22", "product": "茉莉奶绿", "amount": 26 }
+    ],
+    "M1004": [
+      { "date": "2026-07-02", "product": "珍珠奶茶", "amount": 12 }
+    ]
+  },
+  "inventory": {
+    "茉莉奶绿": { "stock": 42, "status": "充足" },
+    "芝士葡萄": { "stock": 8, "status": "紧张" },
+    "桂花乌龙": { "stock": 0, "status": "缺货" },
+    "珍珠奶茶": { "stock": 60, "status": "充足" }
+  },
+  "coupons": {
+    "VIP": [
+      { "name": "满 35 减 10", "threshold": 35, "discount": 10 },
+      { "name": "满 48 减 15", "threshold": 48, "discount": 15 },
+      { "name": "会员日双倍积分", "threshold": 0, "discount": 0 }
+    ],
+    "普通": [
+      { "name": "满 20 减 5", "threshold": 20, "discount": 5 },
+      { "name": "第二杯半价", "threshold": 0, "discount": 0 }
+    ]
+  },
+  "followup_templates": {
+    "积分到期提醒": "{name}{gender}您好，我是茗香茶饮的会员专员。您的 {points} 积分将于 {points_expire} 到期，到期后会自动清零，建议尽快到店使用哦。",
+    "活动推荐": "{name}{gender}您好，茗香茶饮本周有会员专属活动，到店即可享受优惠，您方便的话我帮您看看最合适的券？",
+    "流失挽回": "{name}{gender}您好，好久没在店里见到您啦，我们上新了几款饮品，还有专属回归礼，欢迎您再到店体验～",
+    "默认": "{name}{gender}您好，这里是茗香茶饮会员服务中心，想跟您做一次简单的会员回访，方便聊两句吗？"
+  }
+}

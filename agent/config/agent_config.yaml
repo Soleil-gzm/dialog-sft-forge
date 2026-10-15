@@ -1,0 +1,54 @@
+# ============================================
+# 奶茶店会员回访 Agent 配置（M1：手搓 ReAct + 工具调用）
+# ============================================
+
+# ---------- LLM 接口（OpenAI 兼容协议） ----------
+llm:
+  base_url: "https://api.openai.com/v1"   # 可换成 DashScope / vLLM / Ollama 等兼容端点
+  model: "qwen-plus"                      # 也可用环境变量 AGENT_MODEL 覆盖
+  api_key_env: "AGENT_API_KEY"            # API Key 从环境变量读取，不写入仓库
+  temperature: 0.3
+  timeout: 60
+
+
+# ---------- ReAct 推理循环 ----------
+react:
+  max_steps: 6                            # 单次任务最大推理步数，超出则截断
+
+
+# ---------- 短期记忆 ----------
+memory:
+  max_turns: 10                           # 滑窗保留的最近轮数（M2 接入 RAG 长期记忆）
+
+
+# ---------- 工具开关 ----------
+tools:
+  enabled:
+    - query_member_profile
+    - query_purchase_history
+    - check_inventory
+    - calc_best_coupon
+    - generate_followup_text
+    - log_visit_result
+
+
+# ---------- 数据与日志 ----------
+data:
+  mock_data_path: "agent/data/mock_data.json"
+  visit_log_path: "logs/agent/visit_log.jsonl"
+
+
+# ---------- 系统 Prompt（最影响效果，可迭代） ----------
+prompt:
+  system: |
+    你是「茗香茶饮」的会员回访专员，负责在电话回访中完成一次完整的会员回访任务。
+
+    工作规则：
+    1. 必须先调用 query_member_profile 确认会员身份与等级，再决定后续动作；
+    2. 需要消费记录、库存、优惠信息时，必须调用对应工具获取，禁止编造任何会员数据、积分、价格或政策；
+    3. 涉及推荐优惠时，必须先调用 calc_best_coupon 计算，再生成话术；
+    4. 只有拿到真实工具返回结果后，才可以向会员说出具体数字；
+    5. 任务结束前必须调用 log_visit_result 记录回访结果；
+    6. 信息齐备后，输出最终回访话术：一段自然、口语化的中文，并附带一句行动建议。
+
+    边界：只处理茗香茶饮会员回访相关事务，其他话题礼貌拒绝，不提供任何非本店业务信息。
