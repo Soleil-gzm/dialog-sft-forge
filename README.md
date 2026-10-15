@@ -143,16 +143,37 @@ Agent 会依次调用会员画像、消费记录、库存、优惠等工具，�
 ### 架构
 
 ```mermaid
-flowchart LR
-    A[会员画像 / 回访任务] --> B[ReAct Loop]
-    B --> C{需要工具?}
-    C -- 是 --> D[Tool Registry]
-    D --> E["query_member_profile<br/>query_purchase_history<br/>check_inventory<br/>calc_best_coupon<br/>generate_followup_text<br/>log_visit_result"]
-    E --> F[observation 回填]
-    F --> B
-    C -- 否 --> G[最终回访话术 + 行动建议]
-    B --> H[推理轨迹 Trace]
+flowchart TB
+    subgraph L1["入口层"]
+        CLI["CLI 入口<br/>run_agent.py"]
+    end
+
+    subgraph L2["推理层 · 核心"]
+        REACT["ReAct 推理循环<br/>思考 → 行动 → 观察"]
+        MEM["短期记忆<br/>多轮上下文滑窗"]
+    end
+
+    subgraph L3["工具层"]
+        REG["Tool Registry<br/>JSON Schema 参数校验"]
+        TOOLS["6 个业务工具<br/>画像 / 库存 / 优惠 / 话术 / 记录"]
+    end
+
+    subgraph L4["模型与知识层 · M2 / M4 规划"]
+        FT["Xtuner 领域模型<br/>微调后的奶茶店底座"]
+        RAG["RAG 长期记忆<br/>复用已有混合检索层"]
+    end
+
+    CLI --> REACT
+    REACT <--> MEM
+    REACT -->|调用工具| REG
+    REG --> TOOLS
+    TOOLS -->|结果回填| REACT
+
+    FT -.-> REACT
+    RAG -.-> MEM
 ```
+
+> 图例：实线 = 已实现；虚线 = 规划中（M2 接 RAG 长期记忆 / M4 接 Xtuner 领域模型）。
 
 ### 运行
 
