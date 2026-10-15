@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dialog-sft-forge"
+version = "0.1.0"
+description = "Config-driven multi-turn dialogue generation toolkit for SFT data synthesis"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Dialog SFT Forge contributors" }]
+keywords = ["dialogue", "sft", "synthetic-data", "llm", "data-generation"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+  "gradio",
+  "pandas",
+  "openpyxl",
+  "pyyaml",
+  "numpy",
+  "tqdm",
+  "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/dialog-sft-forge"
+Repository = "https://github.com/your-org/dialog-sft-forge"
+Documentation = "https://github.com/your-org/dialog-sft-forge/tree/main/docs"
+
+[tool.setuptools]
+include-package-data = true
