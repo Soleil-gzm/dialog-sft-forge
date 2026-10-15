@@ -12,6 +12,24 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional
 
+# agent/core/llm_client.py -> 项目根目录
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _load_env_file(path: str) -> Dict[str, str]:
+    """极简 .env 解析（仅标准库）：KEY=VALUE，忽略空行与 # 注释。"""
+    if not os.path.isfile(path):
+        return {}
+    values: Dict[str, str] = {}
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
 
 class LLMClient:
     """极简 OpenAI 兼容客户端，支持 tools（function calling）。"""
@@ -32,12 +50,24 @@ class LLMClient:
 
     @classmethod
     def from_config(cls, config) -> "LLMClient":
-        """从 AgentConfig 构建客户端，环境变量优先。"""
+        """从 AgentConfig 构建客户端。
+
+        取值优先级：进程环境变量 > 项目根目录 .env > 配置文件。
+        .env 已被 .gitignore 忽略，不会被提交到仓库。
+        """
+        env_file = {
+            **_load_env_file(os.path.join(_PROJECT_ROOT, ".env")),
+            **_load_env_file(os.path.join(os.getcwd(), ".env")),
+        }
+
+        def resolve(name: str, default: str = "") -> str:
+            return os.environ.get(name) or env_file.get(name) or default
+
         api_key_env = config.get("llm.api_key_env", "AGENT_API_KEY")
         return cls(
-            base_url=os.environ.get("AGENT_BASE_URL") or config.get("llm.base_url", ""),
-            model=os.environ.get("AGENT_MODEL") or config.get("llm.model", ""),
-            api_key=os.environ.get(api_key_env, ""),
+            base_url=resolve("AGENT_BASE_URL", config.get("llm.base_url", "")),
+            model=resolve("AGENT_MODEL", config.get("llm.model", "")),
+            api_key=resolve(api_key_env, ""),
             temperature=config.get("llm.temperature", 0.3),
             timeout=config.get("llm.timeout", 60),
         )

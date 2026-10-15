@@ -178,9 +178,16 @@ flowchart TB
 ### 运行
 
 ```bash
-export AGENT_API_KEY="your-api-key"   # 可选：AGENT_BASE_URL / AGENT_MODEL 覆盖配置
+# macOS / Linux
+export AGENT_API_KEY="your-api-key"
+
+# Windows PowerShell
+$env:AGENT_API_KEY="your-api-key"
+
 python agent/run_agent.py --member-id M1001 --task "完成一次积分到期提醒回访"
 ```
+
+API Key 有三种配置方式，优先级：**环境变量 > 仓库根目录 `.env` > 配置文件**。推荐临时会话设置（关掉终端即失效），或复制 `.env.example` 为 `.env` 填写（`.env` 已在 `.gitignore` 中，不会被提交）。端点与模型同理可用 `AGENT_BASE_URL` / `AGENT_MODEL` 覆盖。
 
 LLM 端点、循环步数上限、工具开关与系统 Prompt 均在 `agent/config/agent_config.yaml` 中配置，无需改代码。内核逻辑有独立测试（不依赖 LLM）：
 

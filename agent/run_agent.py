@@ -54,7 +54,7 @@ def main() -> int:
 
     if not llm.api_key:
         key_env = config.get("llm.api_key_env", "AGENT_API_KEY")
-        print(f"[!] 未检测到 API Key：请设置环境变量 {key_env} 后重试。")
+        print(f"[!] 未检测到 API Key：请设置环境变量 {key_env}，或写入仓库根目录 .env 后重试。")
         print(f"    已注册工具（{len(registry.names())} 个）：{', '.join(registry.names())}")
         return 1
 
