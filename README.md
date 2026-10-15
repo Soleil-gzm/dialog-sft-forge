@@ -21,6 +21,8 @@ Dialog SFT Forge 是一个以配置驱动为核心的多轮对话数据生成框
 
 它适用于客服、运营、售后、会员回访等需要“多轮对话 + 业务条件 + 话术分支”的场景，能够在不改代码的前提下，快速切换不同业务模板和自动生成大规模对话数据。
 
+在此基础上，项目正向数据链路下游延伸，目标打通「数据生成 → 清洗增强 → 微调 → Agent 执行 → RAG 记忆 → 评估 → 轨迹回流」的垂直闭环，让生成的 SFT 数据真正驱动一个可运行的回访 Agent。
+
 ## Logo / 架构图
 
 ### Logo
@@ -99,6 +101,15 @@ python demo/app.py
 
 打开浏览器后，即可看到 Gradio 端到端的对话生成界面。
 
+### 5) 运行回访 Agent（可选）
+
+```bash
+export AGENT_API_KEY="your-api-key"
+python agent/run_agent.py --member-id M1001 --task "完成一次积分到期提醒回访"
+```
+
+Agent 会依次调用会员画像、消费记录、库存、优惠等工具，产出「推理轨迹 + 最终回访话术」。
+
 ## 示例
 
 下面是一条典型的合成对话样例：
@@ -118,10 +129,61 @@ python demo/app.py
 
 这种输出适合直接用于 SFT 数据集构建，也可以进一步接入清洗、评测和训推链路。
 
+## Agent 闭环（M1：手搓 ReAct + 工具调用）
+
+在数据生成能力之上，项目正在补齐下游 Agent 能力：让生成的领域数据驱动一个会「做事」的回访 Agent，而不是只会生成话术。
+
+### 设计要点
+
+- **手搓 ReAct 推理循环**：不依赖 LangChain / LangGraph，思考 → 工具调用 → 观察 全流程记录为可追踪 trace
+- **工具注册表（Tool Registry）**：工具以 JSON Schema 声明参数，直接导出为 OpenAI `tools` 格式，统一做参数解析与异常兜底
+- **任务规划型工具集**：查询会员画像 / 消费记录 / 库存，计算最优优惠，生成回访话术，记录回访结果
+- **短期记忆**：多轮上下文滑窗截断（长期记忆将在 M2 接入 RAG）
+
+### 架构
+
+```mermaid
+flowchart LR
+    A[会员画像 / 回访任务] --> B[ReAct Loop]
+    B --> C{需要工具?}
+    C -- 是 --> D[Tool Registry]
+    D --> E["query_member_profile<br/>query_purchase_history<br/>check_inventory<br/>calc_best_coupon<br/>generate_followup_text<br/>log_visit_result"]
+    E --> F[observation 回填]
+    F --> B
+    C -- 否 --> G[最终回访话术 + 行动建议]
+    B --> H[推理轨迹 Trace]
+```
+
+### 运行
+
+```bash
+export AGENT_API_KEY="your-api-key"   # 可选：AGENT_BASE_URL / AGENT_MODEL 覆盖配置
+python agent/run_agent.py --member-id M1001 --task "完成一次积分到期提醒回访"
+```
+
+LLM 端点、循环步数上限、工具开关与系统 Prompt 均在 `agent/config/agent_config.yaml` 中配置，无需改代码。内核逻辑有独立测试（不依赖 LLM）：
+
+```bash
+pytest agent/tests -v
+```
+
+### 目录结构
+
+```text
+agent/
+├── core/          # ReAct 循环、工具注册表、LLM 客户端、记忆、配置
+├── tools/         # 任务规划型业务工具集
+├── config/        # agent_config.yaml
+├── data/          # 虚构奶茶店模拟数据
+├── tests/         # 不依赖 LLM 的核心逻辑测试
+└── run_agent.py   # CLI 入口
+```
+
 ## 文档导航
 
 - [docs/architecture.md](docs/architecture.md)：分层架构、依赖方向、核心设计说明
 - [demo/](demo/)：Gradio 演示应用和示例数据生成脚本
+- [agent/](agent/)：奶茶店会员回访 Agent（手搓 ReAct + 工具调用）
 - [scripts_general/](scripts_general/)：生成核心代码（路径、条件、话术、分析）
 - [requirements.txt](requirements.txt)：Python 依赖声明
 - [pyproject.toml](pyproject.toml)：项目元数据与依赖声明
@@ -129,6 +191,9 @@ python demo/app.py
 
 ## Roadmap
 
+- [x] Agent 骨架（M1）：手搓 ReAct 循环 + 工具注册表 + 任务规划型工具集
+- [ ] Agent 长期记忆：复用混合检索引擎接入 RAG
+- [ ] Agent Eval：测试集 + LLM-as-a-Judge 自动打分 + 回归测试
 - [ ] 数据清洗：相似度去重、质量过滤、格式规整
 - [ ] SFT 训练：LoRA / 全量微调脚本与训练配置
 - [ ] 评估体系：自动评测 + 人工检查面板
