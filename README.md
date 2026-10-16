@@ -203,9 +203,12 @@ agent/
 ├── tools/         # 任务规划型业务工具集
 ├── config/        # agent_config.yaml
 ├── data/          # 虚构奶茶店模拟数据
+├── examples/      # 真实运行的推理轨迹样例（md 可读版 + json 结构化）
 ├── tests/         # 不依赖 LLM 的核心逻辑测试
 └── run_agent.py   # CLI 入口
 ```
+
+真实轨迹样例：[积分到期提醒（M1001）](agent/examples/trace_M1001_points_expiry.md) ｜ [缺货绕行（M1003）](agent/examples/trace_M1003_out_of_stock.md)。
 
 ## 文档导航
 
