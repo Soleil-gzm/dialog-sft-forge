@@ -10,7 +10,7 @@ license: mit
 ---
 
 <p align="center">
-  <img src="docs/images/logo.png" alt="Dialog SFT Forge Logo" width="180" />
+  <img src="docs/images/logo.png" alt="Dialog SFT Forge Logo" width="150" />
 </p>
 
 <h1 align="center">Dialog SFT Forge</h1>
