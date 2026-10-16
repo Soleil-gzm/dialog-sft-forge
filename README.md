@@ -9,7 +9,11 @@ pinned: false
 license: mit
 ---
 
-# Dialog SFT Forge
+<p align="center">
+  <img src="docs/images/logo.png" alt="Dialog SFT Forge Logo" width="180" />
+</p>
+
+<h1 align="center">Dialog SFT Forge</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Dialog-SFT%20Forge-1EAEDB?style=for-the-badge&logo=python&logoColor=white" alt="Dialog SFT Forge" />
@@ -23,19 +27,7 @@ Dialog SFT Forge 是一个以配置驱动为核心的多轮对话数据生成框
 
 在此基础上，项目正向数据链路下游延伸，目标打通「数据生成 → 清洗增强 → 微调 → Agent 执行 → RAG 记忆 → 评估 → 轨迹回流」的垂直闭环，让生成的 SFT 数据真正驱动一个可运行的回访 Agent。
 
-## Logo / 架构图
-
-### Logo
-
-```text
-   ___      _     _     ___  ___  _ _____ ___ ___  _   _
-  / _ \____| |   / \   / _ \/ _ \/ /_   _|_ _| __|| | | |
- | | | / _ \ |  / _ \ / /_)/ /_)/ /  | |  | || _| | |_| |
- | |_| |  __/ | / ___ \___/ / ___/ /  | |  | || |_ |  _  |
-  \___/ \___|_|/_/   \_\____/_/  /_/   |_| |___|___||_| |_|
-```
-
-### 架构总览
+## 架构总览
 
 ```mermaid
 flowchart LR
@@ -195,6 +187,16 @@ LLM 端点、循环步数上限、工具开关与系统 Prompt 均在 `agent/con
 pytest agent/tests -v
 ```
 
+### 真实运行效果
+
+下图为普通会员 M1002（王强）的真实运行轨迹：Agent 自主完成 5 步工具编排（画像 → 消费记录 + 最优券 → 库存 + 话术 → 落库），并**自动识别出任务描述中的性别（"她"）与会员档案（先生）不一致**，以档案信息为准称呼、在话术中显式纠偏提示，避免错误信息外发。
+
+<p align="center">
+  <img src="docs/images/agent_demo_M1002.png" alt="Agent 真实运行截图：M1002 活动推荐回访的 ReAct 推理轨迹" width="900" />
+</p>
+
+更多场景的完整轨迹：[积分到期提醒（M1001）](agent/examples/trace_M1001_points_expiry.md) ｜ [缺货绕行（M1003）](agent/examples/trace_M1003_out_of_stock.md)。
+
 ### 目录结构
 
 ```text
@@ -207,8 +209,6 @@ agent/
 ├── tests/         # 不依赖 LLM 的核心逻辑测试
 └── run_agent.py   # CLI 入口
 ```
-
-真实轨迹样例：[积分到期提醒（M1001）](agent/examples/trace_M1001_points_expiry.md) ｜ [缺货绕行（M1003）](agent/examples/trace_M1003_out_of_stock.md)。
 
 ## 文档导航
 
