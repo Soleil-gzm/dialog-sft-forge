@@ -33,9 +33,9 @@ def _print_trace(trace) -> None:
     for step in trace:
         print(f"[Step {step['step']}] 思考: {step.get('thought') or '(调用工具中)'}")
         if step.get("actions"):
-            print(f"           调用: {', '.join(step['actions'])}")
+            print(f"         调用: {', '.join(step['actions'])}")
         for obs in step.get("observations", []):
-            print(f"           观察({obs['tool']}): {obs['result']}")
+            print(f"         观察({obs['tool']}): {obs['result']}")
 
 
 def main() -> int:
