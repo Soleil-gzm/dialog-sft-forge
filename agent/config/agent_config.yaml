@@ -38,6 +38,22 @@ data:
   visit_log_path: "logs/agent/visit_log.jsonl"
 
 
+# ---------- RAG 长期记忆（M2） ----------
+rag:
+  knowledge_dir: "agent/data/knowledge"   # 奶茶店知识库文档（会员 / 积分 / 优惠券 / 服务）
+  chunk_size: 300                         # 单块字符数
+  chunk_overlap: 50                       # 相邻块重叠字符数
+  top_k: 3                                # 最终返回的片段数
+  candidate_k: 10                         # 每路检索先召回的候选数（再融合）
+  rrf_k: 60                               # RRF 平滑参数（原论文经验值）
+  embedding:
+    provider: "auto"                      # auto | api | hashing（auto：有端点走 API，否则回退离线哈希向量）
+    model: "text-embedding-3-small"       # 需替换为你的 embedding 服务支持的模型名
+    base_url: ""                          # 留空则回退离线哈希向量（DeepSeek 暂无 embeddings 接口）
+    api_key_env: "AGENT_EMBEDDING_API_KEY"
+    cache_path: "agent/rag/cache/embeddings.json"
+
+
 # ---------- 系统 Prompt（最影响效果，可迭代） ----------
 prompt:
   system: |

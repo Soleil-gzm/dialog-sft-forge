@@ -21,6 +21,7 @@ logs/
 # ---------- 生成产物 ----------
 output/
 demo/data/case/
+agent/rag/cache/
 
 # ---------- IDE / 编辑器 ----------
 .vscode/
