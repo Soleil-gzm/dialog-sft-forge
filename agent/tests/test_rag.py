@@ -128,10 +128,18 @@ def test_bm25_empty_corpus():
 def test_vector_store_cosine_order():
     store = NumpyVectorStore()
     store.add(["same", "orthogonal", "opposite"], np.array([[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]]))
-    hits = store.search(np.array([1.0, 0.0]), top_k=3)
+    hits = store.search(np.array([1.0, 0.0]), top_k=3, min_score=-2.0)
     assert [cid for cid, _ in hits] == ["same", "orthogonal", "opposite"]
     assert hits[0][1] == pytest.approx(1.0)
     assert hits[2][1] == pytest.approx(-1.0)
+
+
+def test_vector_store_filters_irrelevant_by_default():
+    # 默认 min_score=0：正交（相似度 0）结果应被过滤，避免把「查不到」伪装成「有结果」
+    store = NumpyVectorStore()
+    store.add(["same", "orthogonal"], np.array([[1.0, 0.0], [0.0, 1.0]]))
+    hits = store.search(np.array([1.0, 0.0]), top_k=5)
+    assert [cid for cid, _ in hits] == ["same"]
 
 
 def test_vector_store_dimension_mismatch():
@@ -194,6 +202,17 @@ def test_hashing_embedding_favours_overlapping_text():
 
 @pytest.fixture(scope="module")
 def retriever():
+    """与生产默认一致：未配置 embedding 端点时走纯 BM25 单路。"""
+    chunks = load_chunks(KNOWLEDGE_DIR)
+    return HybridRetriever(chunks, embedding_provider=None, top_k=3, rrf_k=60)
+
+
+@pytest.fixture(scope="module")
+def hybrid_retriever():
+    """注入离线哈希向量，仅用于验证「双路融合」代码路径。
+
+    哈希向量存在哈希冲突、无 IDF，不适合作为生产检索路，故只在测试中出现。
+    """
     chunks = load_chunks(KNOWLEDGE_DIR)
     return HybridRetriever(chunks, HashingEmbedding(), top_k=3, rrf_k=60)
 
@@ -241,9 +260,17 @@ def test_retriever_finds_delivery_policy(retriever):
     assert any("service.md" in r.chunk.source for r in results)
 
 
-def test_retriever_single_route_methods(retriever):
+def test_retriever_single_route_methods(retriever, hybrid_retriever):
     assert retriever.search_bm25_only("积分", top_k=2)
-    assert retriever.search_vector_only("积分", top_k=2)
+    assert retriever.search_vector_only("积分", top_k=2) == []  # 无向量路时返回空
+    assert hybrid_retriever.search_vector_only("积分", top_k=2)
+
+
+def test_hybrid_route_active_only_with_provider(hybrid_retriever):
+    assert hybrid_retriever.has_vector_route is True
+    results = hybrid_retriever.search("积分有效期", top_k=3)
+    assert results
+    assert any(r.vector_rank is not None for r in results)
 
 
 def test_retriever_result_payload_has_citation(retriever):
@@ -252,6 +279,11 @@ def test_retriever_result_payload_has_citation(retriever):
     assert payload["citation"]
     assert payload["source"].startswith("knowledge/")
     assert isinstance(payload["score"], float)
+
+
+def test_retriever_returns_empty_when_nothing_relevant(retriever):
+    # 与知识库完全无重叠的查询必须返回空，而不是硬凑几条无关片段
+    assert retriever.search("巧克力慕斯蛋糕") == []
 
 
 def test_retriever_requires_non_empty_chunks():

@@ -23,19 +23,26 @@ from agent.core.config import load_agent_config, resolve_path  # noqa: E402
 from agent.core.llm_client import LLMClient  # noqa: E402
 from agent.core.memory import ShortTermMemory  # noqa: E402
 from agent.core.react_loop import ReActAgent  # noqa: E402
+from agent.rag.retriever import build_retriever  # noqa: E402
 from agent.tools.business_tools import build_registry  # noqa: E402
 
 DEFAULT_CONFIG = os.path.join(AGENT_DIR, "config", "agent_config.yaml")
 
 
-def _print_trace(trace) -> None:
-    """打印推理轨迹：思考 → 行动 → 观察。"""
+def _print_trace(trace, max_len: int = 400) -> None:
+    """打印推理轨迹：思考 → 行动 → 观察。
+
+    检索类工具的返回值较长，超出 max_len 时截断展示，避免刷屏。
+    """
     for step in trace:
         print(f"[Step {step['step']}] 思考: {step.get('thought') or '(调用工具中)'}")
         if step.get("actions"):
             print(f"         调用: {', '.join(step['actions'])}")
         for obs in step.get("observations", []):
-            print(f"         观察({obs['tool']}): {obs['result']}")
+            result = obs["result"]
+            if len(result) > max_len:
+                result = f"{result[:max_len]}...（已截断，共 {len(obs['result'])} 字符）"
+            print(f"         观察({obs['tool']}): {result}")
 
 
 def main() -> int:
@@ -49,7 +56,13 @@ def main() -> int:
     data_path = resolve_path(config.get("data.mock_data_path"), PROJECT_ROOT)
     log_path = resolve_path(config.get("data.visit_log_path"), PROJECT_ROOT)
 
-    registry = build_registry(data_path, log_path=log_path, enabled=config.get("tools.enabled"))
+    retriever = build_retriever(config)
+    registry = build_registry(
+        data_path,
+        log_path=log_path,
+        enabled=config.get("tools.enabled"),
+        retriever=retriever,
+    )
     llm = LLMClient.from_config(config)
 
     if not llm.api_key:

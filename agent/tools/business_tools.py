@@ -8,6 +8,10 @@
     generate_followup_text   生成回访话术（本地模板，不额外调用 LLM）
     log_visit_result         记录回访结果
 
+另有 2 个知识检索类工具（M2 接入 RAG 长期记忆，见 knowledge_tools.py）：
+    search_knowledge_base    检索知识库政策与规则
+    recall_member_history    召回该会员的历史回访记录
+
 数据源：agent/data/mock_data.json（完全虚构的奶茶店场景，可复现）
 """
 
@@ -18,6 +22,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from agent.core.tool_registry import Tool, ToolRegistry
+from agent.tools.knowledge_tools import register_knowledge_tools
 
 logger = logging.getLogger("BusinessTools")
 
@@ -46,13 +51,15 @@ def build_registry(
     data_path: str,
     log_path: str = "",
     enabled: Optional[List[str]] = None,
+    retriever=None,
 ) -> ToolRegistry:
     """构建工具注册表。
 
     Args:
         data_path: mock 数据文件路径
-        log_path:  回访结果日志路径（log_visit_result 使用）
+        log_path:  回访结果日志路径（log_visit_result / recall_member_history 使用）
         enabled:   需要注册的工具名列表；为空则注册全部
+        retriever: 混合检索器；为 None 时不注册知识检索类工具
 
     Returns:
         ToolRegistry 实例
@@ -180,6 +187,9 @@ def build_registry(
             func=log_visit_result,
         )
     )
+
+    # ---------- 7~8. 知识检索类工具（M2：RAG 长期记忆） ----------
+    register_knowledge_tools(registry, retriever, visit_log_path)
 
     # enabled 为空则全部启用；否则只保留启用的工具（重建注册表）
     if enabled:

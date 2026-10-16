@@ -57,6 +57,7 @@ class HybridRetriever:
         rrf_k: int = 60,
         candidate_k: int = 10,
         weights: Optional[List[float]] = None,
+        min_score: float = 0.0,
     ):
         if not chunks:
             raise ValueError("知识库为空，无法构建检索器")
@@ -68,6 +69,8 @@ class HybridRetriever:
         # 每路先取回 candidate_k 条再融合，保证融合前有足够候选
         self.candidate_k = max(candidate_k, top_k)
         self.weights = weights
+        # 向量相似度下限：低于该值的片段视为无关，不参与融合
+        self.min_score = min_score
 
         self._index: Dict[str, Chunk] = {c.chunk_id: c for c in chunks}
         self.bm25 = BM25([tokenize(c.text) for c in chunks])
@@ -100,7 +103,7 @@ class HybridRetriever:
             return []
         limit = top_k or self.top_k
         query_vector = self.embedding_provider.embed([query])[0]
-        hits = self.vector_store.search(query_vector, top_k=limit)
+        hits = self.vector_store.search(query_vector, top_k=limit, min_score=self.min_score)
         return [
             RetrievedChunk(chunk=self._index[chunk_id], score=score, vector_rank=rank)
             for rank, (chunk_id, score) in enumerate(hits, start=1)
@@ -124,7 +127,9 @@ class HybridRetriever:
         vector_positions: Dict[str, int] = {}
         if self.has_vector_route:
             query_vector = self.embedding_provider.embed([query])[0]
-            vector_hits = self.vector_store.search(query_vector, top_k=candidate_k)
+            vector_hits = self.vector_store.search(
+                query_vector, top_k=candidate_k, min_score=self.min_score
+            )
             vector_ranking = [chunk_id for chunk_id, _ in vector_hits]
             vector_positions = {cid: rank for rank, cid in enumerate(vector_ranking, start=1)}
             rankings.append(vector_ranking)
@@ -176,4 +181,5 @@ def build_retriever(config) -> HybridRetriever:
         top_k=config.get("rag.top_k", 3),
         rrf_k=config.get("rag.rrf_k", 60),
         candidate_k=config.get("rag.candidate_k", 10),
+        min_score=config.get("rag.min_score", 0.0),
     )

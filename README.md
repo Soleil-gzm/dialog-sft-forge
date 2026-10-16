@@ -130,7 +130,8 @@ Agent 会依次调用会员画像、消费记录、库存、优惠等工具，�
 - **手搓 ReAct 推理循环**：不依赖 LangChain / LangGraph，思考 → 工具调用 → 观察 全流程记录为可追踪 trace
 - **工具注册表（Tool Registry）**：工具以 JSON Schema 声明参数，直接导出为 OpenAI `tools` 格式，统一做参数解析与异常兜底
 - **任务规划型工具集**：查询会员画像 / 消费记录 / 库存，计算最优优惠，生成回访话术，记录回访结果
-- **短期记忆**：多轮上下文滑窗截断（长期记忆将在 M2 接入 RAG）
+- **知识检索工具（RAG 长期记忆）**：检索奶茶店知识库（会员政策 / 积分规则 / 优惠券 / 服务）并返回出处，召回会员历史回访记录实现跨会话记忆
+- **短期记忆**：多轮上下文滑窗截断
 
 ### 架构
 
@@ -147,12 +148,12 @@ flowchart TB
 
     subgraph L3["工具层"]
         REG["Tool Registry<br/>JSON Schema 参数校验"]
-        TOOLS["6 个业务工具<br/>画像 / 库存 / 优惠 / 话术 / 记录"]
+        TOOLS["8 个工具<br/>6 业务 + 2 知识检索"]
     end
 
-    subgraph L4["模型与知识层 · M2 / M4 规划"]
+    subgraph L4["知识与模型层"]
+        RAG["RAG 混合检索<br/>BM25 + 向量 + RRF"]
         FT["Xtuner 领域模型<br/>微调后的奶茶店底座"]
-        RAG["RAG 长期记忆<br/>复用已有混合检索层"]
     end
 
     CLI --> REACT
@@ -160,12 +161,11 @@ flowchart TB
     REACT -->|调用工具| REG
     REG --> TOOLS
     TOOLS -->|结果回填| REACT
-
+    TOOLS --> RAG
     FT -.-> REACT
-    RAG -.-> MEM
 ```
 
-> 图例：实线 = 已实现；虚线 = 规划中（M2 接 RAG 长期记忆 / M4 接 Xtuner 领域模型）。
+> 图例：实线 = 已实现；虚线 = 规划中（M4 Xtuner 领域模型）。
 
 ### 运行
 
@@ -195,18 +195,19 @@ pytest agent/tests -v
   <img src="docs/images/agent_demo_M1002.png" alt="Agent 真实运行截图：M1002 活动推荐回访的 ReAct 推理轨迹" width="900" />
 </p>
 
-更多场景的完整轨迹：[积分到期提醒（M1001）](agent/examples/trace_M1001_points_expiry.md) ｜ [缺货绕行（M1003）](agent/examples/trace_M1003_out_of_stock.md)。
+更多场景的完整轨迹：[积分到期提醒（M1001）](agent/examples/trace_M1001_points_expiry.md) ｜ [缺货绕行（M1003）](agent/examples/trace_M1003_out_of_stock.md) ｜ [RAG 政策检索与跨会话记忆（M1001）](agent/examples/trace_M1001_rag_policy.md)。
 
 ### 目录结构
 
 ```text
 agent/
 ├── core/          # ReAct 循环、工具注册表、LLM 客户端、记忆、配置
-├── tools/         # 任务规划型业务工具集
+├── tools/         # 业务工具集 + 知识检索工具
+├── rag/           # 手搓检索层：分块 / BM25 / 向量 / RRF 融合
 ├── config/        # agent_config.yaml
-├── data/          # 虚构奶茶店模拟数据
+├── data/          # 虚构奶茶店模拟数据 + knowledge/ 知识库文档
 ├── examples/      # 真实运行的推理轨迹样例（md 可读版 + json 结构化）
-├── tests/         # 不依赖 LLM 的核心逻辑测试
+├── tests/         # 不依赖 LLM 与网络的测试
 └── run_agent.py   # CLI 入口
 ```
 
@@ -223,7 +224,7 @@ agent/
 ## Roadmap
 
 - [x] Agent 骨架（M1）：手搓 ReAct 循环 + 工具注册表 + 任务规划型工具集
-- [ ] Agent 长期记忆：复用混合检索引擎接入 RAG
+- [x] Agent 长期记忆（M2）：手搓 BM25 + RRF 混合检索层接入 RAG，提供知识检索与跨会话记忆工具
 - [ ] Agent Eval：测试集 + LLM-as-a-Judge 自动打分 + 回归测试
 - [ ] 数据清洗：相似度去重、质量过滤、格式规整
 - [ ] SFT 训练：LoRA / 全量微调脚本与训练配置

@@ -17,7 +17,9 @@ class VectorStore(Protocol):
 
     def add(self, ids: Sequence[str], vectors: np.ndarray) -> None: ...
 
-    def search(self, query_vector: np.ndarray, top_k: int) -> List[Tuple[str, float]]: ...
+    def search(
+        self, query_vector: np.ndarray, top_k: int, min_score: float = 0.0
+    ) -> List[Tuple[str, float]]: ...
 
 
 def _normalize(matrix: np.ndarray) -> np.ndarray:
@@ -48,7 +50,14 @@ class NumpyVectorStore:
         self._matrix = _normalize(matrix)
         self._ids = list(ids)
 
-    def search(self, query_vector: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
+    def search(
+        self, query_vector: np.ndarray, top_k: int = 5, min_score: float = 0.0
+    ) -> List[Tuple[str, float]]:
+        """返回相似度高于 min_score 的前 top_k 条。
+
+        min_score 用于过滤无关结果（余弦相似度为 0 表示完全正交），
+        否则「查不到」会被伪装成「返回若干低相关片段」。
+        """
         if self._matrix is None or not self._ids:
             return []
 
@@ -57,4 +66,5 @@ class NumpyVectorStore:
 
         # 先按相似度降序，再按下标升序，保证同分结果顺序确定
         order = sorted(range(len(self._ids)), key=lambda i: (-float(similarities[i]), i))
-        return [(self._ids[i], float(similarities[i])) for i in order[:top_k]]
+        hits = [(self._ids[i], float(similarities[i])) for i in order]
+        return [item for item in hits if item[1] > min_score][:top_k]
