@@ -4,8 +4,8 @@
 
 # ---------- LLM 接口（OpenAI 兼容协议） ----------
 llm:
-  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"   # 可换成 OpenAI / vLLM / Ollama 等兼容端点
-  model: "qwen-plus"                      # 也可用环境变量 AGENT_MODEL 覆盖
+  base_url: "https://api.deepseek.com"   # 可换成 OpenAI / vLLM / Ollama 等兼容端点
+  model: "deepseek-v4-flash"                      # 也可用环境变量 AGENT_MODEL 覆盖
   api_key_env: "AGENT_API_KEY"            # 只存变量名，Key 从环境变量或 .env 读取，不写入仓库
   temperature: 0.3
   timeout: 60
