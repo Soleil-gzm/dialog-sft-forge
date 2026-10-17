@@ -21,11 +21,11 @@ license: mit
 
 ## 一句话定位
 
-Dialog SFT Forge 是一个以配置驱动为核心的多轮对话数据生成框架，专注于把 Excel 话术表、YAML 配置和案例数据，转换成高质量、可复现、可追踪的 SFT 训练样本。
+Dialog SFT Forge 是一个以配置驱动为核心的多轮对话数据生成框架，专注于把 Excel 话术表、YAML 配置和案例数据，转换成可复现、可追踪的 SFT 训练样本。
 
 它适用于客服、运营、售后、会员回访等需要“多轮对话 + 业务条件 + 话术分支”的场景，能够在不改代码的前提下，快速切换不同业务模板和自动生成大规模对话数据。
 
-在此基础上，项目正向数据链路下游延伸，目标打通「数据生成 → 清洗增强 → 微调 → Agent 执行 → RAG 记忆 → 评估 → 轨迹回流」的垂直闭环，让生成的 SFT 数据真正驱动一个可运行的回访 Agent。
+仓库同时包含奶茶店会员回访 Agent 原型，已实现 ReAct 工具调用、短期记忆和可配置的知识检索。数据清洗增强集成、领域微调、系统化评测与轨迹回流属于后续建设目标，不应与当前已交付能力混淆。
 
 ## 架构总览
 
@@ -59,9 +59,20 @@ flowchart LR
 git clone https://github.com/your-org/dialog-sft-forge.git
 cd dialog-sft-forge
 python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 # 或者：pip install -e .
+```
+
+激活虚拟环境：
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+macOS / Linux：
+
+```bash
+source .venv/bin/activate
 ```
 
 ### 2) 生成 demo 数据
@@ -75,7 +86,7 @@ python demo/generate_demo_data.py
 ### 3) 批量生成多轮对话
 
 ```bash
-python scripts_general/main.py -c demo/demo_config.yaml
+python scripts_general/main.py -c demo/config/demo_config.yaml
 ```
 
 生成结果默认写入 `output/<task_name>_<num_dialogues>_<seed>/`，包含：
@@ -94,6 +105,15 @@ python demo/app.py
 打开浏览器后，即可看到 Gradio 端到端的对话生成界面。
 
 ### 5) 运行回访 Agent（可选）
+
+Windows PowerShell：
+
+```powershell
+$env:AGENT_API_KEY = "your-api-key"
+python agent/run_agent.py --member-id M1001 --task "完成一次积分到期提醒回访"
+```
+
+macOS / Linux：
 
 ```bash
 export AGENT_API_KEY="your-api-key"
@@ -181,15 +201,15 @@ python agent/run_agent.py --member-id M1001 --task "完成一次积分到期提�
 
 API Key 有三种配置方式，优先级：**环境变量 > 仓库根目录 `.env` > 配置文件**。推荐临时会话设置（关掉终端即失效），或复制 `.env.example` 为 `.env` 填写（`.env` 已在 `.gitignore` 中，不会被提交）。端点与模型同理可用 `AGENT_BASE_URL` / `AGENT_MODEL` 覆盖。
 
-LLM 端点、循环步数上限、工具开关与系统 Prompt 均在 `agent/config/agent_config.yaml` 中配置，无需改代码。内核逻辑有独立测试（不依赖 LLM）：
+LLM 端点、循环步数上限、工具开关与系统 Prompt 均在 `agent/config/agent_config.yaml` 中配置，无需改代码。知识检索支持 BM25 与向量检索的 RRF 融合；配置有效的 Embedding API 后启用混合检索，未配置时自动退化为 BM25。内核逻辑有独立测试（不依赖 LLM）：
 
 ```bash
 pytest agent/tests -v
 ```
 
-### 真实运行效果
+### 运行轨迹示例
 
-下图为普通会员 M1002（王强）的真实运行轨迹：Agent 自主完成 5 步工具编排（画像 → 消费记录 + 最优券 → 库存 + 话术 → 落库），并**自动识别出任务描述中的性别（"她"）与会员档案（先生）不一致**，以档案信息为准称呼、在话术中显式纠偏提示，避免错误信息外发。
+下图展示普通会员 M1002（王强）的示例运行轨迹：Agent 完成 5 步工具编排（画像 → 消费记录 + 最优券 → 库存 + 话术 → 落库），并**识别出任务描述中的性别（"她"）与会员档案（先生）不一致**，以档案信息为准称呼并在话术中提示纠偏。该示例基于仓库中的虚构模拟数据，不代表生产系统运行结果。
 
 <p align="center">
   <img src="docs/images/agent_demo_M1002.png" alt="Agent 真实运行截图：M1002 活动推荐回访的 ReAct 推理轨迹" width="900" />
@@ -213,7 +233,11 @@ agent/
 
 ## 文档导航
 
-- [docs/architecture.md](docs/architecture.md)：分层架构、依赖方向、核心设计说明
+- [docs/architecture.md](docs/architecture.md)：系统分层、模块职责、数据流与当前实现边界
+- [docs/project-design-doc.md](docs/project-design-doc.md)：项目目标、范围、技术方案、约束与演进设计
+- [docs/progress.md](docs/progress.md)：里程碑状态、已完成能力、当前限制与下一步
+- [docs/CHANGELOG.md](docs/CHANGELOG.md)：面向用户的版本变更记录
+- [docs/WORKLOG.md](docs/WORKLOG.md)：按日期记录的研发与维护工作日志
 - [demo/](demo/)：Gradio 演示应用和示例数据生成脚本
 - [agent/](agent/)：奶茶店会员回访 Agent（手搓 ReAct + 工具调用）
 - [scripts_general/](scripts_general/)：生成核心代码（路径、条件、话术、分析）
