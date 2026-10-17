@@ -35,7 +35,9 @@ class ReActAgent:
     def run(self, user_query: str) -> Dict[str, Any]:
         """执行一次回访任务，返回 {answer, trace, messages}。"""
         messages: List[Dict[str, Any]] = [{"role": "system", "content": self.system_prompt}]
-        if self.memory:
+        # 注意：不能用 `if self.memory`——ShortTermMemory 实现了 __len__，
+        # 空记忆会被判定为 False，导致记忆永远写不进去。必须显式判断 None。
+        if self.memory is not None:
             messages.extend(self.memory.as_list())
         messages.append({"role": "user", "content": user_query})
 
@@ -59,7 +61,7 @@ class ReActAgent:
 
             # 无工具调用 → 视为最终答复，任务结束
             if not tool_calls:
-                if self.memory:
+                if self.memory is not None:
                     self.memory.add({"role": "user", "content": user_query})
                     self.memory.add({"role": "assistant", "content": content})
                 return {"answer": content, "trace": trace, "messages": messages}

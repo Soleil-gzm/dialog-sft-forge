@@ -196,7 +196,14 @@ export AGENT_API_KEY="your-api-key"
 # Windows PowerShell
 $env:AGENT_API_KEY="your-api-key"
 
+# 单轮任务
 python agent/run_agent.py --member-id M1001 --task "完成一次积分到期提醒回访"
+
+# 多轮会话（短期记忆跨轮保留，输入 exit 退出）
+python agent/run_agent.py --member-id M1001 -i
+
+# 对比演示：关闭记忆，观察上下文丢失后的行为
+python agent/run_agent.py --member-id M1001 -i --no-memory
 ```
 
 API Key 有三种配置方式，优先级：**环境变量 > 仓库根目录 `.env` > 配置文件**。推荐临时会话设置（关掉终端即失效），或复制 `.env.example` 为 `.env` 填写（`.env` 已在 `.gitignore` 中，不会被提交）。端点与模型同理可用 `AGENT_BASE_URL` / `AGENT_MODEL` 覆盖。
@@ -215,7 +222,7 @@ pytest agent/tests -v
   <img src="docs/images/agent_demo_M1002.png" alt="Agent 真实运行截图：M1002 活动推荐回访的 ReAct 推理轨迹" width="900" />
 </p>
 
-更多场景的完整轨迹：[积分到期提醒（M1001）](agent/examples/trace_M1001_points_expiry.md) ｜ [缺货绕行（M1003）](agent/examples/trace_M1003_out_of_stock.md) ｜ [RAG 政策检索与跨会话记忆（M1001）](agent/examples/trace_M1001_rag_policy.md)。
+更多场景的完整轨迹：[积分到期提醒（M1001）](agent/examples/trace_M1001_points_expiry.md) ｜ [缺货绕行（M1003）](agent/examples/trace_M1003_out_of_stock.md) ｜ [RAG 政策检索与跨会话记忆（M1001）](agent/examples/trace_M1001_rag_policy.md) ｜ [有记忆 vs 无记忆对比实验](agent/examples/memory_compare.md)。
 
 ### 目录结构
 

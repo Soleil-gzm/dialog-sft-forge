@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""奶茶店会员回访 Agent —— 命令行入口（M1：手搓 ReAct + 工具调用）。
+"""奶茶店会员回访 Agent —— 命令行入口（M1：手搓 ReAct + 工具调用 / M2：RAG 长期记忆）。
 
 运行方式：
-    python agent/run_agent.py --member-id M1001 --task "完成一次积分到期提醒回访"
+    单轮任务：
+        python agent/run_agent.py --member-id M1001 --task "完成一次积分到期提醒回访"
+    多轮会话（记忆跨轮保留）：
+        python agent/run_agent.py --member-id M1001 -i
+    对比演示（关闭记忆）：
+        python agent/run_agent.py --member-id M1001 -i --no-memory
 
 前置条件：
     在环境变量（或 .env）中配置 AGENT_API_KEY；
@@ -45,10 +50,53 @@ def _print_trace(trace, max_len: int = 400) -> None:
             print(f"         观察({obs['tool']}): {result}")
 
 
+def _run_task(agent: ReActAgent, member_id: str, task: str) -> None:
+    """执行一次回访任务并打印轨迹与答复。"""
+    query = f"会员编号 {member_id}。任务：{task}"
+    print(f"\n=== 任务 ===\n{query}\n")
+
+    result = agent.run(query)
+
+    print("=== 推理轨迹 ===")
+    _print_trace(result["trace"])
+    print("\n=== 最终答复 ===")
+    print(result["answer"] or "(未产出答复)")
+    if result.get("truncated"):
+        print("\n[!] 达到最大推理步数，任务被截断，可调高 react.max_steps 后重试。")
+
+
+def _chat_loop(agent: ReActAgent, member_id: str) -> None:
+    """多轮会话：同一 agent 实例复用记忆，实现跨轮上下文。"""
+    print("\n=== 多轮会话模式 ===")
+    print("每行输入一个回访任务；输入 exit 退出。")
+    if agent.memory is None:
+        print("[!] 记忆已关闭（--no-memory），每轮互不感知上下文。")
+
+    while True:
+        try:
+            task = input("\n> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n已退出。")
+            break
+
+        if not task:
+            continue
+        if task.lower() in {"exit", "quit"}:
+            print("已退出。")
+            break
+        _run_task(agent, member_id, task)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="奶茶店会员回访 Agent（ReAct + 工具调用）")
     parser.add_argument("--member-id", default="M1001", help="会员编号，如 M1001")
     parser.add_argument("--task", default="完成一次会员回访", help="回访任务描述")
+    parser.add_argument(
+        "-i", "--interactive", action="store_true", help="多轮会话模式（记忆跨轮保留）"
+    )
+    parser.add_argument(
+        "--no-memory", action="store_true", help="关闭会话记忆，用于对比演示"
+    )
     parser.add_argument("-c", "--config", default=DEFAULT_CONFIG, help="配置文件路径")
     args = parser.parse_args()
 
@@ -71,26 +119,22 @@ def main() -> int:
         print(f"    已注册工具（{len(registry.names())} 个）：{', '.join(registry.names())}")
         return 1
 
+    memory = None if args.no_memory else ShortTermMemory(
+        max_turns=config.get("memory.max_turns", 10)
+    )
     agent = ReActAgent(
         llm_client=llm,
         tool_registry=registry,
         system_prompt=config.get("prompt.system", ""),
         max_steps=config.get("react.max_steps", 6),
         tools_enabled=config.get("tools.enabled"),
-        memory=ShortTermMemory(max_turns=config.get("memory.max_turns", 10)),
+        memory=memory,
     )
 
-    query = f"会员编号 {args.member_id}。任务：{args.task}"
-    print(f"\n=== 任务 ===\n{query}\n")
-
-    result = agent.run(query)
-
-    print("=== 推理轨迹 ===")
-    _print_trace(result["trace"])
-    print("\n=== 最终答复 ===")
-    print(result["answer"] or "(未产出答复)")
-    if result.get("truncated"):
-        print("\n[!] 达到最大推理步数，任务被截断，可调高 react.max_steps 后重试。")
+    if args.interactive:
+        _chat_loop(agent, args.member_id)
+    else:
+        _run_task(agent, args.member_id, args.task)
     return 0
 
 

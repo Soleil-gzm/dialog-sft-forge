@@ -14,6 +14,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from agent.core.memory import ShortTermMemory  # noqa: E402
+from agent.core.react_loop import ReActAgent  # noqa: E402
 from agent.core.tool_registry import Tool, ToolRegistry  # noqa: E402
 from agent.tools.business_tools import build_registry  # noqa: E402
 
@@ -135,3 +136,46 @@ def test_memory_clear():
     memory.add({"role": "user", "content": "hi"})
     memory.clear()
     assert len(memory) == 0
+
+
+# ---------------- 多轮会话记忆 ----------------
+
+
+class _FakeLLM:
+    """不调用工具的假 LLM：直接返回文本，便于验证跨轮上下文。"""
+
+    def __init__(self):
+        self.requests = []
+
+    def chat(self, messages, tools=None):
+        self.requests.append([m.get("content") for m in messages])
+        return {"role": "assistant", "content": f"第 {len(self.requests)} 轮答复"}
+
+
+def test_multi_turn_reuses_memory():
+    llm = _FakeLLM()
+    memory = ShortTermMemory(max_turns=10)
+    agent = ReActAgent(llm, ToolRegistry(), "系统提示", memory=memory)
+
+    agent.run("第一轮问题")
+    agent.run("第二轮问题")
+
+    # 两轮 × (user + assistant)
+    assert len(memory) == 4
+    assert memory.as_list()[0]["content"] == "第一轮问题"
+
+    # 第二轮请求中应携带第一轮问答
+    second_request = llm.requests[1]
+    assert "第一轮问题" in second_request
+    assert "第 1 轮答复" in second_request
+
+
+def test_multi_turn_without_memory_is_isolated():
+    llm = _FakeLLM()
+    agent = ReActAgent(llm, ToolRegistry(), "系统提示", memory=None)
+
+    agent.run("第一轮问题")
+    agent.run("第二轮问题")
+
+    # 关闭记忆后，第二轮请求不应包含第一轮内容
+    assert "第一轮问题" not in llm.requests[1]
