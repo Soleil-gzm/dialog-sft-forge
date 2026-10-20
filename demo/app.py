@@ -222,6 +222,21 @@ CSS = """
 .dfs-stat b { color: #1F6B4E; font-size: 16px; }
 
 footer { visibility: hidden; }
+
+/* ---- 路径展示区：固定高度，内容超出时内部滚动 ---- */
+#paths_display .wrap {
+  max-height: 340px;
+  overflow-y: auto;
+}
+#paths_display pre, #paths_display textarea {
+  max-height: 340px !important;
+  overflow-y: auto !important;
+}
+
+/* ---- 结果区右列：case_card 置顶、chatbot 置底 ---- */
+#result-right-col {
+  justify-content: space-between;
+}
 """
 
 BANNER_HTML = """
@@ -583,8 +598,10 @@ def create_demo():
                 paths_display = gr.Code(
                     label="🗺️ 生成路径（每行一条）",
                     interactive=False,
-                    lines=18,
+                    lines=16,
+                    max_lines=16,
                     wrap_lines=True,
+                    elem_id="paths_display",
                 )
                 dialogue_selector = gr.Radio(
                     label="💬 选择对话查看",
@@ -592,7 +609,7 @@ def create_demo():
                 )
                 download_btn = gr.DownloadButton("📥 下载 JSON")
                 stats_html = gr.HTML()
-            with gr.Column(scale=2):
+            with gr.Column(scale=2, elem_id="result-right-col"):
                 case_card = gr.HTML()
                 chatbot = gr.Chatbot(
                     label="多轮对话",
