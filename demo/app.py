@@ -77,12 +77,34 @@ logger = logging.getLogger("DemoApp")
 # ============================================================
 
 def create_theme():
-    """奶茶色系主题：主色奶绿，辅色暖橙，中性色米灰"""
+    """奶茶色系主题：主色为与 CSS 调色板一致的哑光深绿（#2E7D5B）
+
+    Gradio 内置的 "green" 色阶是高饱和的亮绿，会和自定义 CSS 里的暗绿
+    （Banner / 卡片 / 热力图）风格不统一。这里用自定义 Color 覆盖整条色阶，
+    让按钮、滑块、Radio 选中态、标签底色都落到同一套低饱和绿上。
+    """
+    milk_green = gr.themes.Color(
+        name="milk_green",
+        c50="#F2F8F5",
+        c100="#DFEEE7",
+        c200="#C1DDCE",
+        c300="#97C4AC",
+        c400="#6AA886",
+        c500="#2E7D5B",  # 主色（与 Banner / 卡片 / 热力图一致）
+        c600="#26684C",
+        c700="#1F5340",
+        c800="#194234",
+        c900="#123027",
+        c950="#0A1F19",
+    )
     return gr.themes.Soft(
-        primary_hue="green",
+        primary_hue=milk_green,
         secondary_hue="orange",
         neutral_hue="stone",
         font=[gr.themes.GoogleFont("Noto Sans SC"), "ui-sans-serif", "system-ui"],
+    ).set(
+        # 默认 hover 会跳到更亮的 primary_400，为避免"悬停变亮绿"，改为变深
+        button_primary_background_fill_hover="*primary_600",
     )
 
 
