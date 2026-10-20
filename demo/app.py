@@ -305,6 +305,24 @@ footer { visibility: hidden; }
   min-height: 0;
   overflow-y: auto;
 }
+
+/* ---- 三个内容框统一浅绿底色（同一色系） ---- */
+/* 覆盖 Gradio 的 --block-background-fill 变量，让 .block 背景变为浅绿 */
+#paths_display,
+#paths_display .cm-editor {
+  --block-background-fill: #F2F8F5 !important;
+  background: #F2F8F5 !important;
+}
+#result-left-col > .form,
+#result-left-col > .form fieldset {
+  --block-background-fill: #F2F8F5 !important;
+  background: #F2F8F5 !important;
+}
+#chatbot,
+#chatbot .bubble-wrap {
+  --block-background-fill: #F2F8F5 !important;
+  background: #F2F8F5 !important;
+}
 """
 
 BANNER_HTML = """
