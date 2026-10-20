@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### 新增
+
+- M3 Agent Eval 离线评测模块（`agent/eval/`）：手写 YAML 评测集、六项规则指标、`Judge` 裁判抽象（默认规则判定，LLM 裁判预留）、FakeLLM 无 Key 基线、版本化报告（report.md/json、cases.json、failures/）。
+- `agent/run_eval.py` 命令行入口：`--config/--testset/--output-dir/--limit/--seed/--mock/--use-llm-judge`，输出到 `output/eval/{时间戳}/`。
+- 评测相关单元测试 4 个文件，共 27 个用例。
+
 ### 文档
 
 - 建立架构、项目设计、进度、变更记录和工作日志五份项目文档。

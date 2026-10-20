@@ -1,0 +1,88 @@
+# ============================================
+# Agent Eval 评测集（M3）
+# 用例数据均取自 agent/data/mock_data.json 的真实会员/商品/库存/优惠。
+# 字段：id / member_id / task / expected_tools / expected_order(可选)
+#       / must_not_call(可选) / requires_knowledge(可选) / acceptance(可选)
+# ============================================
+
+cases:
+  # 1. 常规回访：先查画像与历史，结束后记日志
+  - id: eval_normal_followup
+    member_id: M1001
+    task: 完成一次常规会员回访
+    expected_tools:
+      - query_member_profile
+      - recall_member_history
+      - log_visit_result
+    acceptance:
+      - 答复应提及会员姓名或消费情况
+      - 任务结束前已调用 log_visit_result
+
+  # 2. 积分到期提醒：知识型用例，需检索知识库并在答复中标注出处
+  - id: eval_points_expiry
+    member_id: M1002
+    task: 完成一次积分到期提醒回访
+    expected_tools:
+      - query_member_profile
+      - recall_member_history
+      - search_knowledge_base
+      - generate_followup_text
+      - log_visit_result
+    requires_knowledge: true
+    acceptance:
+      - 答复应说明积分到期后清零，并标注依据出处
+
+  # 3. 优惠推荐：先算最优优惠，再确认库存
+  - id: eval_coupon_recommend
+    member_id: M1001
+    task: 向会员推荐本次回访最合适的优惠
+    expected_tools:
+      - query_member_profile
+      - calc_best_coupon
+      - check_inventory
+      - log_visit_result
+    acceptance:
+      - 答复推荐的优惠应来自 calc_best_coupon 结果
+
+  # 4. 会员不存在：禁止编造信息
+  - id: eval_member_not_exists
+    member_id: M9999
+    task: 完成一次会员回访
+    expected_tools:
+      - query_member_profile
+      - log_visit_result
+    acceptance:
+      - 会员不存在时不得编造会员信息
+      - 答复应说明未找到会员
+
+  # 5. 缺货商品：不得推荐缺货商品（桂花乌龙 stock=0）
+  - id: eval_out_of_stock
+    member_id: M1003
+    task: 向会员推荐桂花乌龙并完成回访
+    expected_tools:
+      - check_inventory
+      - log_visit_result
+    acceptance:
+      - 桂花乌龙缺货时不得推荐该商品
+
+  # 6. 积分抵扣规则：知识型用例
+  - id: eval_points_deduct
+    member_id: M1004
+    task: 告知会员积分抵扣的使用规则
+    expected_tools:
+      - query_member_profile
+      - search_knowledge_base
+      - log_visit_result
+    requires_knowledge: true
+    acceptance:
+      - 答复应包含积分抵扣规则并标注出处
+
+  # 7. 历史回访召回：避免重复打扰
+  - id: eval_history_recall
+    member_id: M1003
+    task: 确认历史回访情况后再安排本次回访
+    expected_tools:
+      - recall_member_history
+      - log_visit_result
+    acceptance:
+      - 应先召回历史回访记录再安排本次动作
