@@ -265,16 +265,32 @@ footer { visibility: hidden; }
   min-height: 0 !important;
   overflow-y: auto;
 }
+/* 下载按钮与统计块取内容高度，不参与 flex 拉伸，由 paths/selector 填满空间 */
+#result-left-col > button,
+#result-left-col > .block.hide-container {
+  flex: 0 0 auto !important;
+  --block-padding: 0 12px;
+}
 
-/* ---- 结果区右列：chatbot 填满剩余空间并内部滚动 ---- */
+/* ---- 结果区右列：chatbot 紧贴 case_card 下方，底部对齐左列统计 ---- */
 #result-right-col {
   display: flex;
   flex-direction: column;
+  gap: 0;
+}
+/* 会员档案卡取内容高度，不被 flex 拉伸，消除与 chatbot 的空白 */
+#result-right-col > .block:first-child {
+  flex: 0 0 auto !important;
+  margin-bottom: 0 !important;
+}
+#result-right-col > .block:first-child .dfs-card {
+  margin-bottom: 0 !important;
 }
 #chatbot {
   flex: 1;
   min-height: 0;
   height: auto !important;
+  margin-top: 0 !important;
   display: flex;
   flex-direction: column;
 }
