@@ -16,7 +16,24 @@ license: mit
 <h1 align="center">Dialog SFT Forge</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Dialog-SFT%20Forge-1EAEDB?style=for-the-badge&logo=python&logoColor=white" alt="Dialog SFT Forge" />
+  <em>配置驱动的多轮对话数据合成框架 · Excel 话术模板 + 概率矩阵 FSM → 可复现的 SFT 训练样本</em>
+</p>
+
+<p align="center">
+  <a href="https://huggingface.co/spaces/Soleil-gzm/dialog-sft-forge"><img src="https://img.shields.io/badge/Live_Demo-HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="Live Demo" /></a>
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/Gradio-6.x-FF7C00?style=for-the-badge" alt="Gradio" />
+  <img src="https://img.shields.io/badge/License-MIT-2E7D5B?style=for-the-badge" alt="License" />
+</p>
+
+<p align="center">
+  <a href="#快速开始">🚀 快速开始</a> ·
+  <a href="#demo-展示">🧋 Demo 展示</a> ·
+  <a href="#数据流水线全景">🗺️ 数据流水线</a> ·
+  <a href="https://github.com/Soleil-gzm/dialog-sft-forge/tree/main/agent">🤖 Agent</a> ·
+  <a href="#roadmap">🎯 Roadmap</a> ·
+  <a href="#文档导航">📚 文档</a> ·
+  <a href="README.en.md">🌐 English</a>
 </p>
 
 ## 一句话定位
@@ -41,6 +58,28 @@ flowchart LR
     F --> I[JSONL / Trace / Analysis]
     I --> J[Gradio Demo]
 ```
+
+## 数据流水线全景
+
+项目的长期目标是打通「造数据 → 清洗 → 增强 → 微调 → 评估 → 部署」的完整闭环，
+让合成的领域数据真正驱动下游模型与 Agent：
+
+```mermaid
+flowchart LR
+    A["🏭 造数据<br/>Excel + YAML → 多轮对话"] --> B["🧹 清洗<br/>去重 / 质量过滤"]
+    B --> C["🔊 增强<br/>规则层数据增广"]
+    C --> D["🎯 微调<br/>LoRA / SFT"]
+    D --> E["📊 评估<br/>PPL / 行为指标 / LLM-Judge"]
+    E --> F["🚢 部署<br/>Gradio / API"]
+    F -.->|轨迹回流| A
+
+    classDef done fill:#DCF3E7,stroke:#2E7D5B,color:#12402F;
+    classDef todo fill:#F1F5F3,stroke:#94A3B8,color:#64748B;
+    class A done;
+    class B,C,D,E,F todo;
+```
+
+> 图例：🟩 绿色 = 已交付；⬜ 灰色 = 规划中，详见 [Roadmap](#roadmap)。
 
 ## 亮点特性
 
@@ -103,6 +142,32 @@ python demo/app.py
 ```
 
 打开浏览器后，即可看到 Gradio 端到端的对话生成界面。
+
+## Demo 展示
+
+仓库内置一个 Gradio 展示型界面，以**完全虚构的「茗香茶饮」会员回访场景**演示端到端流程：
+
+```text
+Excel 话术模板 + 概率矩阵  →  FSM 路径生成  →  多轮对话合成  →  JSON 导出
+```
+
+界面特性：
+
+| 区域 | 说明 |
+|------|------|
+| 🔥 概率矩阵热力图 | 颜色深浅直观呈现模块间转移概率，快速定位转移热点 |
+| 🎛️ 生成控制 | 对话条数滑块（1–20）+ 随机种子，同种子 → 完全一致输出 |
+| 🪪 会员档案卡 | 门店 / 会员等级 / 积分余额 / 消费金额 / 到期日期 |
+| 💬 对话气泡 | system prompt、客户、专员三种角色同屏展示 |
+| 🗺️ 路径与导出 | 每条对话的模块路径，以及结构化 JSON 一键下载 |
+
+本地运行：
+
+```bash
+python demo/app.py
+```
+
+在线体验：**[🤗 Live Demo on HuggingFace Spaces](https://huggingface.co/spaces/Soleil-gzm/dialog-sft-forge)**
 
 ### 5) 运行回访 Agent（可选）
 
@@ -237,6 +302,14 @@ agent/
 ├── tests/         # 不依赖 LLM 与网络的测试
 └── run_agent.py   # CLI 入口
 ```
+
+## 可复现性
+
+「同一输入 + 同一随机种子 → 完全一致的输出」是数据工厂可审计的前提：
+
+- **统一种子**：`random_seed` 同时控制路径采样、话术抽样、继承链与随机字段生成。
+- **数据可重建**：`python demo/generate_demo_data.py` 以固定种子生成话术模板、概率矩阵与案例文件，产物随仓库提交。
+- **配置即输入**：所有随机性来源都在 [demo/config/demo_config.yaml](demo/config/demo_config.yaml) 中显式声明，没有隐藏的全局状态。
 
 ## 文档导航
 

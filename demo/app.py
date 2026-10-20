@@ -38,6 +38,9 @@ sys.path.insert(0, DEMO_DIR)  # 为了 import generate_demo_data
 DATA_DIR = os.path.join(DEMO_DIR, "data")
 CONFIG_PATH = os.path.join(DEMO_DIR, "config", "demo_config.yaml")
 
+REPO_URL = "https://github.com/Soleil-gzm/dialog-sft-forge"
+SPACE_URL = "https://huggingface.co/spaces/Soleil-gzm/dialog-sft-forge"
+
 
 def ensure_demo_data():
     """检查 demo/data 是否存在，缺失则自动生成"""
@@ -67,6 +70,167 @@ from core.utils.random_service import RandomService
 
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("DemoApp")
+
+
+# ============================================================
+# 视觉资源：主题 / CSS / Banner
+# ============================================================
+
+def create_theme():
+    """奶茶色系主题：主色奶绿，辅色暖橙，中性色米灰"""
+    return gr.themes.Soft(
+        primary_hue="green",
+        secondary_hue="orange",
+        neutral_hue="stone",
+        font=[gr.themes.GoogleFont("Noto Sans SC"), "ui-sans-serif", "system-ui"],
+    )
+
+
+CSS = """
+/* ---- 顶部 Banner ---- */
+.dfs-banner {
+  background: linear-gradient(135deg, #1F6B4E 0%, #2E7D5B 45%, #62B88F 100%);
+  border-radius: 18px;
+  padding: 26px 30px;
+  margin-bottom: 14px;
+  box-shadow: 0 10px 28px rgba(31, 107, 78, 0.28);
+}
+.dfs-banner-title {
+  color: #FFFFFF;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.dfs-banner-sub {
+  color: #DCF3E7;
+  font-size: 15px;
+  margin-bottom: 16px;
+}
+.dfs-banner-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.dfs-tag {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #FFFFFF;
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 13px;
+}
+
+/* ---- 导航条 ---- */
+.dfs-nav a {
+  display: inline-block;
+  margin-right: 10px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: #F1F5F3;
+  color: #1F6B4E !important;
+  font-size: 13px;
+  text-decoration: none;
+  border: 1px solid #DCE9E2;
+}
+.dfs-nav a:hover { background: #E1EFE8; }
+
+/* ---- 概率矩阵热力图 ---- */
+.dfs-heat { overflow-x: auto; max-height: 460px; border-radius: 12px; }
+.dfs-heat-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: 100%;
+}
+.dfs-heat-table th, .dfs-heat-table td {
+  padding: 5px 8px;
+  text-align: center;
+  white-space: nowrap;
+  border: 1px solid #EAF1ED;
+}
+.dfs-heat-table thead th, .dfs-heat-table .rowh {
+  background: #F4F8F6;
+  color: #33473E;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+.dfs-heat-table .rowh { position: sticky; left: 0; top: auto; }
+
+/* ---- 案例信息卡 ---- */
+.dfs-card {
+  background: #F7FBF9;
+  border: 1px solid #DCE9E2;
+  border-left: 5px solid #2E7D5B;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+}
+.dfs-card-title {
+  color: #1F6B4E;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.dfs-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 16px;
+}
+.dfs-card-item { font-size: 13px; color: #33473E; }
+.dfs-card-item b { color: #1F6B4E; font-weight: 600; }
+
+/* ---- 对话气泡 ---- */
+.dfs-chat-hint {
+  font-size: 13px;
+  color: #64748B;
+  margin-bottom: 6px;
+}
+
+/* ---- 统计条 ---- */
+.dfs-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.dfs-stat {
+  background: #F1F5F3;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #33473E;
+}
+.dfs-stat b { color: #1F6B4E; font-size: 16px; }
+
+footer { visibility: hidden; }
+"""
+
+BANNER_HTML = """
+<div class="dfs-banner">
+  <div class="dfs-banner-title">🧋 奶茶店会员回访 · 多轮对话合成 Demo</div>
+  <div class="dfs-banner-sub">
+    Excel 话术模板 + 概率转移矩阵 + FSM 路径生成 → 可复现、可追踪的 SFT 多轮对话数据
+  </div>
+  <div class="dfs-banner-tags">
+    <span class="dfs-tag">📊 配置驱动</span>
+    <span class="dfs-tag">🔀 概率矩阵 FSM</span>
+    <span class="dfs-tag">🔗 继承链</span>
+    <span class="dfs-tag">🎲 固定种子可复现</span>
+    <span class="dfs-tag">🧪 虚构数据</span>
+  </div>
+</div>
+"""
+
+
+def build_nav_html():
+    links = [
+        ("🏠 项目主页", REPO_URL),
+        ("🤗 Live Demo", SPACE_URL),
+        ("🏗️ 架构文档", f"{REPO_URL}/blob/main/docs/architecture.md"),
+        ("🗺️ Roadmap", f"{REPO_URL}#roadmap"),
+    ]
+    items = "".join(
+        f'<a href="{url}" target="_blank" rel="noopener">{label}</a>'
+        for label, url in links
+    )
+    return f'<div class="dfs-nav">{items}</div>'
 
 
 # ============================================================
@@ -129,6 +293,7 @@ def run_generation(num_dialogues: int, seed: int):
             "dialogue_id": i + 1,
             "path": path,
             "case_file": case.get("_filename", f"case_{i+1:03d}"),
+            "case_info": _extract_case_info(case),
             "messages": [
                 {"role": m["role"], "content": m["content"]}
                 for m in messages
@@ -150,51 +315,75 @@ def run_generation(num_dialogues: int, seed: int):
     return dialogues, all_paths, config_summary
 
 
+# 案例信息卡展示的字段（按展示顺序）
+_CARD_FIELDS = [
+    "门店名称", "客户姓名", "会员等级", "积分余额",
+    "消费金额", "到期日期", "门店电话", "小程序名称",
+]
+
+
+def _extract_case_info(case):
+    """从 case dict 中提取用于界面展示的字段"""
+    info = {}
+    for f in _CARD_FIELDS:
+        v = case.get(f)
+        if v is not None and str(v).strip():
+            info[f] = str(v).strip()
+    return info
+
+
 # ============================================================
-# Gradio 回调函数
+# 渲染辅助
 # ============================================================
 
-def on_generate(num_dialogues, seed):
-    """生成按钮回调：返回 (chatbot_messages, json_str, paths_display, selector_choices, selector_update)"""
-    try:
-        dialogues, paths, summary = run_generation(num_dialogues, seed)
-    except Exception as e:
-        logger.error(f"生成失败: {e}", exc_info=True)
-        return [], json.dumps({"error": str(e)}), f"生成失败: {e}", gr.update(choices=[], value=None), gr.update(visible=False)
+def _prob_heatmap_html(prob_df):
+    """把概率矩阵渲染成带色阶的 HTML 表格（值越大绿色越深）"""
+    mods = [str(m) for m in prob_df.index]
+    parts = ['<div class="dfs-heat"><table class="dfs-heat-table"><thead><tr><th></th>']
+    for c in mods:
+        parts.append(f"<th>{c}</th>")
+    parts.append("</tr></thead><tbody>")
+    for r in mods:
+        parts.append(f'<tr><th class="rowh">{r}</th>')
+        for c in mods:
+            try:
+                v = float(prob_df.loc[r, c]) * 100
+            except (KeyError, TypeError, ValueError):
+                v = 0.0
+            if v <= 0:
+                bg, color = "transparent", "#CBD5E1"
+                text = "·"
+            else:
+                alpha = min(0.12 + (v / 100.0) * 0.88, 1.0)
+                bg = f"rgba(46, 125, 91, {alpha:.3f})"
+                color = "#FFFFFF" if alpha > 0.42 else "#12402F"
+                text = f"{v:.0f}"
+            parts.append(
+                f'<td style="background:{bg};color:{color}">{text}</td>'
+            )
+        parts.append("</tr>")
+    parts.append("</tbody></table></div>")
+    return "".join(parts)
 
-    # 路径展示（纯文本，每条路径独占一行）
-    paths_text = "\n".join(
-        f"路径 {i+1:>2} [{d['case_file']}]  {' → '.join(d['path'])}"
-        for i, d in enumerate(dialogues)
+
+def _case_card_html(case_info, dialogue_id=None, case_file=None):
+    if not case_info:
+        return ""
+    items = "".join(
+        f'<div class="dfs-card-item"><b>{k}</b>：{v}</div>'
+        for k, v in case_info.items()
     )
-
-    # JSON 下载
-    json_str = json.dumps(dialogues, ensure_ascii=False, indent=2)
-
-    # 选择器选项
-    choices = [f"对话 {i+1} ({d['case_file']})" for i, d in enumerate(dialogues)]
-    default_choice = choices[0] if choices else None
-
-    # 默认展示第一个对话
-    chatbot_msgs = _dialogue_to_chatbot(dialogues[0]) if dialogues else []
-
-    return chatbot_msgs, json_str, paths_text, gr.update(choices=choices, value=default_choice), gr.update(visible=True)
-
-
-def on_select_dialogue(selected_value, dialogues_json):
-    """选择对话回调（从 Radio label 解析索引）"""
-    if not selected_value or not dialogues_json:
-        return []
-    import re
-
-    m = re.search(r"对话 (\d+)", selected_value)
-    if not m:
-        return []
-    idx = int(m.group(1)) - 1
-    dialogues = json.loads(dialogues_json)
-    if 0 <= idx < len(dialogues):
-        return _dialogue_to_chatbot(dialogues[idx])
-    return []
+    head = "会员档案"
+    if dialogue_id is not None:
+        head = f"会员档案 · 对话 {dialogue_id}"
+        if case_file:
+            head += f"（{case_file}）"
+    return (
+        f'<div class="dfs-card">'
+        f'<div class="dfs-card-title">🪪 {head}</div>'
+        f'<div class="dfs-card-grid">{items}</div>'
+        f"</div>"
+    )
 
 
 def _dialogue_to_chatbot(dialogue):
@@ -216,6 +405,91 @@ def _dialogue_to_chatbot(dialogue):
     return msgs
 
 
+def _stats_html(dialogues):
+    """生成统计条 HTML"""
+    n = len(dialogues)
+    if n == 0:
+        return ""
+    turns = [sum(1 for m in d["messages"] if m["role"] != "system") for d in dialogues]
+    avg_turns = sum(turns) / n
+    uniq_paths = len({tuple(d["path"]) for d in dialogues})
+    cards = [
+        ("生成对话", n),
+        ("平均轮数", f"{avg_turns:.1f}"),
+        ("不同路径", uniq_paths),
+    ]
+    items = "".join(
+        f'<div class="dfs-stat">{label} <b>{val}</b></div>' for label, val in cards
+    )
+    return f'<div class="dfs-stats">{items}</div>'
+
+
+# ============================================================
+# Gradio 回调函数
+# ============================================================
+
+def on_generate(num_dialogues, seed, progress=gr.Progress()):
+    """生成按钮回调"""
+    try:
+        progress(0.15, desc="加载配置与概率矩阵…")
+        dialogues, paths, summary = run_generation(num_dialogues, seed)
+        progress(1.0, desc="完成")
+    except Exception as e:
+        logger.error(f"生成失败: {e}", exc_info=True)
+        empty_update = gr.update(choices=[], value=None)
+        return (
+            [], json.dumps({"error": str(e)}), f"生成失败: {e}",
+            empty_update, gr.update(visible=False), "", "",
+        )
+
+    # 路径展示（纯文本，每条路径独占一行）
+    paths_text = "\n".join(
+        f"路径 {i+1:>2} [{d['case_file']}]  {' → '.join(d['path'])}"
+        for i, d in enumerate(dialogues)
+    )
+
+    # JSON 下载
+    json_str = json.dumps(dialogues, ensure_ascii=False, indent=2)
+
+    # 选择器选项
+    choices = [f"对话 {i+1} ({d['case_file']})" for i, d in enumerate(dialogues)]
+    default_choice = choices[0] if choices else None
+
+    # 默认展示第一个对话
+    first = dialogues[0] if dialogues else None
+    chatbot_msgs = _dialogue_to_chatbot(first) if first else []
+    case_card = _case_card_html(
+        first["case_info"], first["dialogue_id"], first["case_file"]
+    ) if first else ""
+
+    return (
+        chatbot_msgs, json_str, paths_text,
+        gr.update(choices=choices, value=default_choice),
+        gr.update(visible=True),
+        case_card, _stats_html(dialogues),
+    )
+
+
+def on_select_dialogue(selected_value, dialogues_json):
+    """选择对话回调（从 Radio label 解析索引）"""
+    if not selected_value or not dialogues_json:
+        return [], ""
+    import re
+
+    m = re.search(r"对话 (\d+)", selected_value)
+    if not m:
+        return [], ""
+    idx = int(m.group(1)) - 1
+    dialogues = json.loads(dialogues_json)
+    if 0 <= idx < len(dialogues):
+        d = dialogues[idx]
+        return (
+            _dialogue_to_chatbot(d),
+            _case_card_html(d["case_info"], d["dialogue_id"], d["case_file"]),
+        )
+    return [], ""
+
+
 def load_config_summary():
     """加载配置摘要用于界面展示"""
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -232,45 +506,52 @@ def create_demo():
     config, prob_df, modules = load_config_summary()
 
     with gr.Blocks(title="奶茶店会员回访 Demo") as demo:
-        # ---- 标题 ----
-        gr.Markdown("""
-        # 奶茶店会员回访 — 多轮对话合成 Demo
-
-        本 Demo 展示了 **dialog-sft-forge** 框架的核心能力：
-        从话术模板（Excel）+ 概率转移矩阵 → 随机路径生成 → 多轮对话合成。
-
-        场景为完全虚构的「茗香茶饮」会员回访，所有数据由脚本生成，可复现。
-        """)
+        # ---- Banner + 导航 ----
+        gr.HTML(BANNER_HTML)
+        gr.HTML(build_nav_html())
+        gr.Markdown(
+            """
+            本 Demo 展示 **dialog-sft-forge** 框架的端到端能力：
+            话术模板（Excel）+ 概率转移矩阵 → FSM 随机路径 → 多轮对话合成。
+            场景为完全虚构的「茗香茶饮」会员回访，所有数据由脚本生成、固定种子可复现。
+            """
+        )
 
         # ---- 配置预览 ----
-        with gr.Accordion("配置预览", open=False):
-            gr.Markdown(f"""
-            **模块列表** ({len(modules)} 个): {' / '.join(modules)}
+        with gr.Accordion("🔧 配置预览", open=False):
+            with gr.Row():
+                with gr.Column(scale=1):
+                    gr.Markdown(f"""
+                    **模块列表**（{len(modules)} 个）
 
-            - **起始模块**: {config.get('start_module')}
-            - **A 集** (路径中仅出现一个): {config.get('a_set', [])}
-            - **B 集** (可重复出现): {config.get('b_set', [])}
-            - **终止模块**: {config.get('terminal_modules', [])}
-            - **自循环模块**: {config.get('self_loop_modules', {})}
-            - **促销话术插入模块**: {config.get('insert_nodes', [])}
-            """)
-            gr.Dataframe(
-                value=prob_df * 100,  # 显示百分比
-                label="概率转移矩阵（%）",
-                interactive=False,
-            )
+                    {' · '.join(modules)}
+
+                    ---
+
+                    - **起始模块**：`{config.get('start_module')}`
+                    - **A 集**（路径中仅出现一个）：{config.get('a_set', [])}
+                    - **B 集**（可重复出现）：{config.get('b_set', [])}
+                    - **终止模块**：{config.get('terminal_modules', [])}
+                    - **自循环模块**：{config.get('self_loop_modules', {})}
+                    - **促销话术插入模块**：{config.get('insert_nodes', [])}
+                    """)
+                with gr.Column(scale=2):
+                    gr.HTML(
+                        "<div class='dfs-chat-hint'>概率转移矩阵（%，绿色深浅 = 转移概率高低，· 表示无转移）</div>"
+                        + _prob_heatmap_html(prob_df)
+                    )
 
         # ---- 生成控制 ----
         with gr.Row():
             num_slider = gr.Slider(
                 minimum=1, maximum=20, value=5, step=1,
-                label="生成对话数",
+                label="🎯 生成对话数",
             )
             seed_input = gr.Number(
-                value=42, label="随机种子",
-                info="相同种子+相同数量 → 完全一致的输出",
+                value=42, label="🎲 随机种子",
+                info="相同种子 + 相同数量 → 完全一致的输出",
             )
-            generate_btn = gr.Button("🚀 生成对话", variant="primary")
+            generate_btn = gr.Button("🚀 生成对话", variant="primary", scale=1)
 
         # ---- 结果展示 ----
         dialogue_state = gr.State()  # 存储完整 dialogues JSON 字符串
@@ -278,35 +559,38 @@ def create_demo():
         with gr.Row(visible=False) as result_row:
             with gr.Column(scale=1):
                 paths_display = gr.Code(
-                    label="生成路径（每行一条）",
+                    label="🗺️ 生成路径（每行一条）",
                     interactive=False,
                     lines=18,
                     wrap_lines=True,
                 )
                 dialogue_selector = gr.Radio(
-                    label="选择对话查看",
+                    label="💬 选择对话查看",
                     choices=[],
                 )
                 download_btn = gr.DownloadButton("📥 下载 JSON")
+                stats_html = gr.HTML()
             with gr.Column(scale=2):
+                case_card = gr.HTML()
                 chatbot = gr.Chatbot(
                     label="多轮对话",
-                    height=500,
+                    height=520,
                 )
 
         # ---- 事件绑定 ----
-        # 生成
         generate_btn.click(
             fn=on_generate,
             inputs=[num_slider, seed_input],
-            outputs=[chatbot, dialogue_state, paths_display, dialogue_selector, result_row],
+            outputs=[
+                chatbot, dialogue_state, paths_display,
+                dialogue_selector, result_row, case_card, stats_html,
+            ],
         )
 
-        # 选择对话
         dialogue_selector.change(
             fn=on_select_dialogue,
             inputs=[dialogue_selector, dialogue_state],
-            outputs=[chatbot],
+            outputs=[chatbot, case_card],
         )
 
         # JSON 下载（动态生成文件）
@@ -334,5 +618,11 @@ def create_demo():
 
 demo = create_demo()
 
+
+def launch_demo(**kwargs):
+    """启动 Demo（统一在这里应用主题与自定义 CSS）"""
+    demo.launch(theme=create_theme(), css=CSS, **kwargs)
+
+
 if __name__ == "__main__":
-    demo.launch(theme=gr.themes.Soft())
+    launch_demo()
