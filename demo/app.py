@@ -223,19 +223,71 @@ CSS = """
 
 footer { visibility: hidden; }
 
-/* ---- 路径展示区：固定高度，内容超出时内部滚动 ---- */
-#paths_display .wrap {
-  max-height: 340px;
-  overflow-y: auto;
-}
-#paths_display pre, #paths_display textarea {
-  max-height: 340px !important;
-  overflow-y: auto !important;
+/* ---- 结果区：两列固定高度，底部对齐 ---- */
+#result-left-col, #result-right-col {
+  height: 640px !important;
 }
 
-/* ---- 结果区右列：case_card 置顶、chatbot 置底 ---- */
+/* ---- 结果区左列：路径(4) / 选择器(6) 按比例分配，按钮与统计自然高度 ---- */
+#result-left-col {
+  display: flex;
+  flex-direction: column;
+}
+/* 路径展示（gr.Code） */
+#paths_display {
+  flex: 4;
+  min-height: 0;
+  height: auto !important;
+  display: flex;
+  flex-direction: column;
+}
+#paths_display > div.wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#paths_display .codemirror-wrapper,
+#paths_display .cm-editor {
+  flex: 1;
+  min-height: 0;
+}
+#paths_display .cm-scroller {
+  flex: 1 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+}
+/* 对话选择器（被 div.form 包裹） */
+#result-left-col > .form {
+  flex: 6 !important;
+  min-height: 0 !important;
+  overflow-y: auto;
+}
+
+/* ---- 结果区右列：chatbot 填满剩余空间并内部滚动 ---- */
 #result-right-col {
-  justify-content: space-between;
+  display: flex;
+  flex-direction: column;
+}
+#chatbot {
+  flex: 1;
+  min-height: 0;
+  height: auto !important;
+  display: flex;
+  flex-direction: column;
+}
+#chatbot .wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#chatbot .bubble-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 """
 
@@ -593,19 +645,20 @@ def create_demo():
         # ---- 结果展示 ----
         dialogue_state = gr.State()  # 存储完整 dialogues JSON 字符串
 
-        with gr.Row(visible=False) as result_row:
-            with gr.Column(scale=1):
+        with gr.Row(visible=False, equal_height=True) as result_row:
+            with gr.Column(scale=1, elem_id="result-left-col"):
                 paths_display = gr.Code(
                     label="🗺️ 生成路径（每行一条）",
                     interactive=False,
-                    lines=16,
-                    max_lines=16,
+                    lines=1,
+                    max_lines=1,
                     wrap_lines=True,
                     elem_id="paths_display",
                 )
                 dialogue_selector = gr.Radio(
                     label="💬 选择对话查看",
                     choices=[],
+                    elem_id="dialogue_selector",
                 )
                 download_btn = gr.DownloadButton("📥 下载 JSON")
                 stats_html = gr.HTML()
@@ -613,7 +666,8 @@ def create_demo():
                 case_card = gr.HTML()
                 chatbot = gr.Chatbot(
                     label="多轮对话",
-                    height=520,
+                    height=None,
+                    elem_id="chatbot",
                 )
 
         # ---- 事件绑定 ----
