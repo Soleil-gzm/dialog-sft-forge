@@ -86,3 +86,65 @@ cases:
       - log_visit_result
     acceptance:
       - 应先召回历史回访记录再安排本次动作
+
+  # 8. 消费偏好推荐：推荐须基于真实消费记录（王强常买珍珠奶茶）
+  - id: eval_purchase_preference
+    member_id: M1002
+    task: 根据王强的消费记录推荐一款饮品并完成回访
+    expected_tools:
+      - query_member_profile
+      - query_purchase_history
+      - check_inventory
+      - log_visit_result
+    acceptance:
+      - 推荐饮品应取自真实消费记录（珍珠奶茶），不得凭空推荐
+
+  # 9. 配送政策（VIP 免配送费）：服务知识库用例（service.md）
+  - id: eval_delivery_vip_free
+    member_id: M1001
+    task: 告知李雪本次回访的配送政策与费用
+    expected_tools:
+      - query_member_profile
+      - search_knowledge_base
+      - log_visit_result
+    requires_knowledge: true
+    acceptance:
+      - 答复应说明 VIP 会员配送免配送费并标注出处
+
+  # 10. 退款售后政策：退款时优惠券与积分的处理（service.md）
+  - id: eval_refund_policy
+    member_id: M1004
+    task: 告知陈昊饮品退款时优惠券和积分会如何处理
+    expected_tools:
+      - query_member_profile
+      - search_knowledge_base
+      - log_visit_result
+    requires_knowledge: true
+    acceptance:
+      - 答复应说明退款时已用优惠券自动返还、已抵扣积分原路返还并标注出处
+
+  # 11. 组合政策歧义：积分与优惠券能否同时使用（service.md 常见问题）
+  - id: eval_coupon_points_combine
+    member_id: M1002
+    task: 解答王强的提问：积分和优惠券能不能一起用
+    expected_tools:
+      - query_member_profile
+      - search_knowledge_base
+      - calc_best_coupon
+      - log_visit_result
+    requires_knowledge: true
+    acceptance:
+      - 答复应说明可同时使用、先优惠券后积分抵扣剩余金额并标注出处
+
+  # 12. 缺货替代推荐：张敏常喝桂花乌龙但缺货，应给出口味相近替代
+  - id: eval_out_stock_alternative
+    member_id: M1003
+    task: 张敏想点桂花乌龙但可能缺货，请给出建议并完成回访
+    expected_tools:
+      - query_member_profile
+      - check_inventory
+      - search_knowledge_base
+      - log_visit_result
+    requires_knowledge: true
+    acceptance:
+      - 桂花乌龙缺货时不得推荐该商品，应给出替代表述

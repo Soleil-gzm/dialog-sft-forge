@@ -14,7 +14,7 @@ TESTSET = os.path.join(
 
 def test_load_testset_returns_cases():
     cases = load_testset(TESTSET)
-    assert len(cases) == 7
+    assert len(cases) == 12
     assert all(isinstance(c, EvalCase) for c in cases)
 
 
