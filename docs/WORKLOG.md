@@ -50,6 +50,16 @@
 - 真实 DeepSeek 评测：12/12 通过（平均总分 0.9768）。规则总分与 LLM 质量分高度一致，仅 3 条用例质量分略低于 1.0：eval_out_of_stock（0.8）、eval_purchase_preference（0.8）、eval_out_stock_alternative（0.98），多为裁判对「未直接点明替代/未充分展开消费偏好」的微观评分，不改变通过判定。
 - 报告：`output/eval/20261021_230744/`。
 
+### M5：生成器 → Agent 评测集回流（落地）
+
+- 新增 `agent/eval/backflow/`：`bridge.py`（case 字段→成员 schema 映射、BF 编号）、`convert.py`（messages/case/prompt → EvalCase 纯函数：task、expected_tools、acceptance、requires_knowledge）、`seed.py`（运行时注入会员到 load_mock_data 缓存，零改盘）、`run_backflow.py`（CLI：case+prompt → 转换 → 注入 → 合并 testset → run_eval）。
+- 复用 `EvalCase.from_dict`/`load_testset`/`run_eval`/`write_report`，不改 Agent 核心与生成器核心。
+- 关键设计：运行时注入新会员（BFxxxx）而非复用 M1001-1004，避免 case 身份（银卡/757 分）与 mock 现有会员（VIP/1250 分）不匹配导致评测失真；`calc_best_coupon` 按 level 读券桶，注入时一并补 `coupons[level]`。
+- 单测：`tests/test_backflow.py` 10 项全过；全量 61 passed。
+- 冒烟：`python -m agent.eval.backflow.run_backflow --num 3 --mock` → 回流 3 条 + 原 12 条 = 15/15 通过（100%），规则指标全绿；报告 `output/eval/backflow_20261021_233910/`。
+- 零改盘：`git status` 确认 mock_data.json 无改动。
+- 用法：`python -m agent.eval.backflow.run_backflow --num N [--mock|(需 AGENT_API_KEY)] [--limit K]`。
+
 ### 后续补充：评测接入 CI 回归门禁（同日）
 
 - 在 `.github/workflows/ci.yml` 新增「Eval regression - mock baseline (all pass)」步骤：跑 `agent/run_eval.py --mock` 到 `output/eval/ci/`，并用 python 解析最新 report.json 断言 `pass_rate == 1.0`（12/12），否则构建失败。
