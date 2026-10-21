@@ -89,16 +89,19 @@ def _render_markdown(results: List[Dict[str, Any]], summary: Dict[str, Any], use
     lines.append("")
     lines.append("## 逐用例得分")
     lines.append("")
-    lines.append("| 用例 | 会员 | 通过 | 总分 | 工具覆盖 | 任务完成 | 健壮 | 政策引用 | 编造 | 效率 | 步数 |")
-    lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
+    lines.append("| 用例 | 会员 | 通过 | 总分 | LLM质量分 | 工具覆盖 | 任务完成 | 健壮 | 政策引用 | 编造 | 效率 | 步数 |")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in results:
         m = r["metrics"]
+        q = m.get("quality_score")
+        q_str = f"{q:.3f}" if q is not None else "-"
         lines.append(
-            "| {id} | {mid} | {pass_} | {score} | {tc} | {com} | {rob} | {cit} | {fab} | {eff} | {steps} |".format(
+            "| {id} | {mid} | {pass_} | {score} | {q} | {tc} | {com} | {rob} | {cit} | {fab} | {eff} | {steps} |".format(
                 id=r["case_id"],
                 mid=r["member_id"],
                 pass_="✅" if r["passed"] else "❌",
                 score=r["total_score"],
+                q=q_str,
                 tc=m["tool_coverage"],
                 com=m["task_completion"],
                 rob=m["robustness"],
