@@ -22,6 +22,18 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v
 
+      # 评测回归门禁：mock 基线必须 12/12 全过。
+      # 用僵化 FakeLLM 脚本验证「评测集 / 指标权重 / 工具注册表」的变更
+      # 未破坏理想路径；若有人改动导致 mock 不再全过，立即失败。
+      - name: Eval regression - mock baseline (all pass)
+        run: |
+          python agent/run_eval.py --mock --output-dir output/eval/ci
+          python -c "import glob,json,sys; \
+            p=sorted(glob.glob('output/eval/ci/*/report.json'))[-1]; \
+            s=json.load(open(p,encoding='utf-8'))['summary']; \
+            print('pass_rate =', s['pass_rate'], ' ({}/{})'.format(s['num_passed'], s['num_cases'])); \
+            sys.exit(0 if s['pass_rate'] == 1.0 else 1)"
+
       - name: Smoke test - generate demo data
         run: python demo/generate_demo_data.py
 

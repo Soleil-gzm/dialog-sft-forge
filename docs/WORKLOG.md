@@ -48,7 +48,13 @@
 - 启用 `--use-llm-judge` 的 LLMJudge（每条用例在规则分基础上追加一次裁判 LLM 的质量分）。
 - report.py 逐用例表新增「LLM质量分」列，与规则总分并列展示；rule-only 时该列显示 `-`。
 - 真实 DeepSeek 评测：12/12 通过（平均总分 0.9768）。规则总分与 LLM 质量分高度一致，仅 3 条用例质量分略低于 1.0：eval_out_of_stock（0.8）、eval_purchase_preference（0.8）、eval_out_stock_alternative（0.98），多为裁判对「未直接点明替代/未充分展开消费偏好」的微观评分，不改变通过判定。
-- 报告：`output/eval/20261021_230744/`。  
+- 报告：`output/eval/20261021_230744/`。
+
+### 后续补充：评测接入 CI 回归门禁（同日）
+
+- 在 `.github/workflows/ci.yml` 新增「Eval regression - mock baseline (all pass)」步骤：跑 `agent/run_eval.py --mock` 到 `output/eval/ci/`，并用 python 解析最新 report.json 断言 `pass_rate == 1.0`（12/12），否则构建失败。
+- 作用：围绕僵化 FakeLLM 脚本，捕捉评测集测试集 / 指标权重 / 工具注册表变更对理想路径的破坏回归。
+- 验证：本机以相同命令+解析逻辑模拟执行，输出 `pass_rate = 1.0 (12/12)`，退出码 0。  
 
 ## 2026-10-17：项目文档基线整理
 
