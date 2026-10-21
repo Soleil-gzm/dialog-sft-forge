@@ -68,6 +68,8 @@ from core.pressure.pressure_manager import PressureManager
 from core.utils.path_generator import PathGenerator
 from core.utils.random_service import RandomService
 
+import loop_demo  # 闭环评测（回流 → Agent → 评测）展示适配层
+
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("DemoApp")
 
@@ -322,6 +324,203 @@ footer { visibility: hidden; }
 #chatbot .bubble-wrap {
   --block-background-fill: #F8FBFA !important;
   background: #F8FBFA !important;
+}
+
+/* ---- 闭环评测 Tab ---- */
+.loop-input {
+  font-size: 13px;
+  color: #41524A;
+  background: #EDF6F1;
+  border: 1px solid #D3E7DC;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.loop-hint {
+  font-size: 13px;
+  color: #6B7F75;
+  background: #F7FAF8;
+  border: 1px dashed #CFE0D7;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.loop-panel {
+  border: 1px solid #DCE9E2;
+  border-radius: 12px;
+  background: #F8FBFA;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.loop-panel-title {
+  font-weight: 600;
+  color: #12402F;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+}
+.loop-kv {
+  display: flex;
+  gap: 10px;
+  margin: 6px 0;
+  font-size: 13px;
+  align-items: flex-start;
+}
+.loop-kv > b {
+  flex: 0 0 64px;
+  color: #2E7D5B;
+  font-weight: 600;
+}
+.loop-task {
+  color: #1F2A25;
+  line-height: 1.5;
+}
+.loop-member {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #12402F;
+}
+.loop-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  margin: 2px 4px 2px 0;
+  border-radius: 999px;
+  background: #E3F1EA;
+  color: #1E6B4E;
+  font-size: 12px;
+}
+.loop-chip-kn {
+  background: #FFF3D6;
+  color: #8A5B00;
+}
+.loop-acc {
+  margin: 0;
+  padding-left: 18px;
+  color: #41524A;
+  font-size: 12.5px;
+}
+.loop-step {
+  border-left: 2px solid #CDE3D8;
+  padding: 6px 0 8px 12px;
+  margin-left: 4px;
+}
+.loop-step-head {
+  font-size: 12px;
+  color: #2E7D5B;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.loop-step-no {
+  background: #2E7D5B;
+  color: #fff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+.loop-thought {
+  font-size: 13px;
+  color: #33443C;
+  margin: 4px 0;
+  white-space: pre-wrap;
+}
+.loop-action {
+  font-size: 12.5px;
+  color: #12402F;
+}
+.loop-action code {
+  background: #E3F1EA;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.loop-obs {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+.loop-obs summary {
+  cursor: pointer;
+  color: #5C6F66;
+}
+.loop-obs pre {
+  background: #F1F6F3;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 6px 0 0;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 11.5px;
+}
+.loop-answer {
+  margin-top: 10px;
+  border: 1px dashed #B9D8C9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #FFFFFF;
+}
+.loop-answer-title {
+  font-size: 12px;
+  color: #2E7D5B;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.loop-answer-body {
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: #1F2A25;
+}
+.loop-score-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.loop-score {
+  font-size: 14px;
+  color: #41524A;
+}
+.loop-score b {
+  font-size: 20px;
+  color: #12402F;
+}
+.loop-badge {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+.loop-badge.ok { background: #DDF3E7; color: #146C43; }
+.loop-badge.bad { background: #FDE2E1; color: #B42318; }
+.loop-badge.warn { background: #FFF3D6; color: #8A5B00; }
+.loop-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.loop-metric {
+  background: #FFFFFF;
+  border: 1px solid #E1EEE7;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: #41524A;
+}
+.loop-metric b { color: #12402F; }
+.loop-meta {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6B7F75;
+}
+.loop-empty {
+  font-size: 13px;
+  color: #8B9A93;
+}
+.loop-error {
+  background: #FDF1F0;
+  border-color: #F3C7C3;
+  color: #B42318;
 }
 """
 
@@ -613,6 +812,59 @@ def on_select_dialogue(selected_value, dialogues_json):
     return [], ""
 
 
+def _pick_dialogue(selected_value, dialogues_json):
+    """从选择器 label 解析索引，返回对应 dialogue dict；无效则 None。"""
+    if not selected_value or not dialogues_json:
+        return None
+    import re
+
+    m = re.search(r"对话 (\d+)", selected_value)
+    if not m:
+        return None
+    idx = int(m.group(1)) - 1
+    try:
+        dialogues = json.loads(dialogues_json)
+    except (TypeError, ValueError):
+        return None
+    if 0 <= idx < len(dialogues):
+        return dialogues[idx]
+    return None
+
+
+def on_loop_input_change(selected_value, dialogues_json):
+    """Tab2 顶部「当前输入」随 Tab1 选择变化。"""
+    return loop_demo.render_input_header(_pick_dialogue(selected_value, dialogues_json))
+
+
+def on_run_loop(selected_value, dialogues_json, mode, use_judge, progress=gr.Progress()):
+    """运行一次闭环：回流转换 → 注入会员 → Agent 执行 → 评测。"""
+    dialogue = _pick_dialogue(selected_value, dialogues_json)
+    if not dialogue:
+        return loop_demo.render_input_header(None), "", "", "", ""
+
+    header = loop_demo.render_input_header(dialogue)
+    try:
+        result = loop_demo.run_closed_loop(
+            dialogue,
+            mode=mode,
+            use_llm_judge=use_judge,
+            on_stage=lambda msg, frac: progress(frac, desc=msg),
+        )
+    except Exception as e:
+        logger.error(f"闭环执行失败: {e}", exc_info=True)
+        return header, loop_demo.render_error_html(str(e)), "", "", ""
+
+    ctx = result["context"]
+    judge_label = "LLM 裁判" if (mode == "真实" and use_judge) else "规则判定"
+    return (
+        header,
+        loop_demo.render_case_html(ctx["case"], ctx["case_file"]),
+        loop_demo.render_evalcase_html(result),
+        loop_demo.render_metrics_html(result["record"], judge_label),
+        loop_demo.render_trace_html(result["record"]),
+    )
+
+
 def load_config_summary():
     """加载配置摘要用于界面展示"""
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -627,82 +879,127 @@ def load_config_summary():
 
 def create_demo():
     config, prob_df, modules = load_config_summary()
+    real_model_available = loop_demo.has_api_key()
+    mode_choices = ["基线", "真实"] if real_model_available else ["基线"]
 
     with gr.Blocks(title="奶茶店会员回访 Demo") as demo:
         # ---- Banner + 导航 ----
         gr.HTML(BANNER_HTML)
         gr.HTML(build_nav_html())
-        gr.Markdown(
-            """
-            本 Demo 展示 **dialog-sft-forge** 框架的端到端能力：
-            话术模板（Excel）+ 概率转移矩阵 → FSM 随机路径 → 多轮对话合成。
-            场景为完全虚构的「茗香茶饮」会员回访，所有数据由脚本生成、固定种子可复现。
-            """
-        )
 
-        # ---- 配置预览 ----
-        with gr.Accordion("🔧 配置预览", open=False):
-            with gr.Row():
-                with gr.Column(scale=1):
-                    gr.Markdown(f"""
-                    **模块列表**（{len(modules)} 个）
+        with gr.Tabs():
+            # ============================================================
+            # Tab 1：数据生成
+            # ============================================================
+            with gr.Tab("📊 数据生成"):
+                gr.Markdown(
+                    """
+                    本 Demo 展示 **dialog-sft-forge** 框架的端到端能力：
+                    话术模板（Excel）+ 概率转移矩阵 → FSM 随机路径 → 多轮对话合成。
+                    场景为完全虚构的「茗香茶饮」会员回访，所有数据由脚本生成、固定种子可复现。
+                    """
+                )
 
-                    {' · '.join(modules)}
+                # ---- 配置预览 ----
+                with gr.Accordion("🔧 配置预览", open=False):
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            gr.Markdown(f"""
+                            **模块列表**（{len(modules)} 个）
 
-                    ---
+                            {' · '.join(modules)}
 
-                    - **起始模块**：`{config.get('start_module')}`
-                    - **A 集**（路径中仅出现一个）：{config.get('a_set', [])}
-                    - **B 集**（可重复出现）：{config.get('b_set', [])}
-                    - **终止模块**：{config.get('terminal_modules', [])}
-                    - **自循环模块**：{config.get('self_loop_modules', {})}
-                    - **促销话术插入模块**：{config.get('insert_nodes', [])}
-                    """)
-                with gr.Column(scale=2):
-                    gr.HTML(
-                        "<div class='dfs-chat-hint'>概率转移矩阵（%，绿色深浅 = 转移概率高低，· 表示无转移）</div>"
-                        + _prob_heatmap_html(prob_df)
+                            ---
+
+                            - **起始模块**：`{config.get('start_module')}`
+                            - **A 集**（路径中仅出现一个）：{config.get('a_set', [])}
+                            - **B 集**（可重复出现）：{config.get('b_set', [])}
+                            - **终止模块**：{config.get('terminal_modules', [])}
+                            - **自循环模块**：{config.get('self_loop_modules', {})}
+                            - **促销话术插入模块**：{config.get('insert_nodes', [])}
+                            """)
+                        with gr.Column(scale=2):
+                            gr.HTML(
+                                "<div class='dfs-chat-hint'>概率转移矩阵（%，绿色深浅 = 转移概率高低，· 表示无转移）</div>"
+                                + _prob_heatmap_html(prob_df)
+                            )
+
+                # ---- 生成控制 ----
+                with gr.Row():
+                    num_slider = gr.Slider(
+                        minimum=1, maximum=20, value=5, step=1,
+                        label="🎯 生成对话数",
                     )
+                    seed_input = gr.Number(
+                        value=42, label="🎲 随机种子",
+                        info="相同种子 + 相同数量 → 完全一致的输出",
+                    )
+                    generate_btn = gr.Button("🚀 生成对话", variant="primary", scale=1)
 
-        # ---- 生成控制 ----
-        with gr.Row():
-            num_slider = gr.Slider(
-                minimum=1, maximum=20, value=5, step=1,
-                label="🎯 生成对话数",
-            )
-            seed_input = gr.Number(
-                value=42, label="🎲 随机种子",
-                info="相同种子 + 相同数量 → 完全一致的输出",
-            )
-            generate_btn = gr.Button("🚀 生成对话", variant="primary", scale=1)
+                # ---- 结果展示 ----
+                dialogue_state = gr.State()  # 存储完整 dialogues JSON 字符串
 
-        # ---- 结果展示 ----
-        dialogue_state = gr.State()  # 存储完整 dialogues JSON 字符串
+                with gr.Row(visible=False, equal_height=True) as result_row:
+                    with gr.Column(scale=1, elem_id="result-left-col"):
+                        paths_display = gr.Code(
+                            label="🗺️ 生成路径（每行一条）",
+                            interactive=False,
+                            lines=1,
+                            max_lines=1,
+                            wrap_lines=True,
+                            elem_id="paths_display",
+                        )
+                        dialogue_selector = gr.Radio(
+                            label="💬 选择对话查看",
+                            choices=[],
+                            elem_id="dialogue_selector",
+                        )
+                        download_btn = gr.DownloadButton("📥 下载 JSON")
+                        stats_html = gr.HTML()
+                    with gr.Column(scale=2, elem_id="result-right-col"):
+                        case_card = gr.HTML()
+                        chatbot = gr.Chatbot(
+                            label="多轮对话",
+                            height=None,
+                            elem_id="chatbot",
+                        )
 
-        with gr.Row(visible=False, equal_height=True) as result_row:
-            with gr.Column(scale=1, elem_id="result-left-col"):
-                paths_display = gr.Code(
-                    label="🗺️ 生成路径（每行一条）",
-                    interactive=False,
-                    lines=1,
-                    max_lines=1,
-                    wrap_lines=True,
-                    elem_id="paths_display",
+            # ============================================================
+            # Tab 2：闭环评测（生成对话 → 回流 → Agent → 评测）
+            # ============================================================
+            with gr.Tab("🔁 闭环评测"):
+                gr.Markdown(
+                    """
+                    **闭环：** 取「数据生成」页当前选中的对话 → 回流成 EvalCase（注入运行时会员）
+                    → ReAct Agent 带着工具执行 → 规则 / LLM 双裁判打分。
+                    """
                 )
-                dialogue_selector = gr.Radio(
-                    label="💬 选择对话查看",
-                    choices=[],
-                    elem_id="dialogue_selector",
-                )
-                download_btn = gr.DownloadButton("📥 下载 JSON")
-                stats_html = gr.HTML()
-            with gr.Column(scale=2, elem_id="result-right-col"):
-                case_card = gr.HTML()
-                chatbot = gr.Chatbot(
-                    label="多轮对话",
-                    height=None,
-                    elem_id="chatbot",
-                )
+                loop_input_html = gr.HTML(loop_demo.render_input_header(None))
+
+                with gr.Row():
+                    loop_mode = gr.Radio(
+                        choices=mode_choices,
+                        value="基线",
+                        label="🤖 执行模式",
+                        scale=2,
+                        info=("基线 = FakeLLM 全对脚本，秒级返回"
+                              if real_model_available
+                              else "未检测到 AGENT_API_KEY，仅支持规则基线"),
+                    )
+                    loop_judge = gr.Checkbox(
+                        label="启用 LLM 裁判（叠加质量分）",
+                        value=False,
+                        scale=2,
+                    )
+                    loop_run_btn = gr.Button("▶ 运行闭环", variant="primary", scale=1)
+
+                with gr.Row(equal_height=True):
+                    with gr.Column(scale=1):
+                        loop_case_html = gr.HTML()
+                        loop_eval_html = gr.HTML()
+                    with gr.Column(scale=2):
+                        loop_metrics_html = gr.HTML()
+                        loop_trace_html = gr.HTML()
 
         # ---- 事件绑定 ----
         generate_btn.click(
@@ -712,12 +1009,31 @@ def create_demo():
                 chatbot, dialogue_state, paths_display,
                 dialogue_selector, result_row, case_card, stats_html,
             ],
+        ).then(
+            fn=on_loop_input_change,
+            inputs=[dialogue_selector, dialogue_state],
+            outputs=[loop_input_html],
         )
 
         dialogue_selector.change(
             fn=on_select_dialogue,
             inputs=[dialogue_selector, dialogue_state],
             outputs=[chatbot, case_card],
+        )
+        dialogue_selector.change(
+            fn=on_loop_input_change,
+            inputs=[dialogue_selector, dialogue_state],
+            outputs=[loop_input_html],
+        )
+
+        # 闭环运行
+        loop_run_btn.click(
+            fn=on_run_loop,
+            inputs=[dialogue_selector, dialogue_state, loop_mode, loop_judge],
+            outputs=[
+                loop_input_html, loop_case_html, loop_eval_html,
+                loop_metrics_html, loop_trace_html,
+            ],
         )
 
         # JSON 下载（动态生成文件）

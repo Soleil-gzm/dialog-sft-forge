@@ -93,7 +93,11 @@ def build_registry(
         if not member:
             return {"error": f"未找到会员: {member_id}"}
         level = member.get("level", "普通")
-        coupons = data.get("coupons", {}).get(level, [])
+        # 会员级券优先（回流注入的会员按真实案例发券），否则退回等级券池
+        coupons = (
+            data.get("member_coupons", {}).get(member_id)
+            or data.get("coupons", {}).get(level, [])
+        )
         if not coupons:
             return {"member_id": member_id, "level": level, "coupon": None, "reason": "无可用优惠"}
         best = max(coupons, key=lambda c: c.get("discount", 0))

@@ -50,7 +50,7 @@ DEFAULT_TESTSET = os.path.join(AGENT_DIR, "eval", "testset.yaml")
 
 
 # ---------------- 轻量 case 解析（不引生成器内部依赖） ----------------
-def _parse_case_txt(path: str) -> Dict[str, str]:
+def parse_case_txt(path: str) -> Dict[str, str]:
     """解析 "- 字段：值"（兼容中文/英文冒号）的案例文件。"""
     case: Dict[str, str] = {}
     with open(path, "r", encoding="utf-8") as f:
@@ -106,7 +106,7 @@ def build_backflow_cases(
         name = os.path.splitext(cf)[0]
         case_path = os.path.join(cases_dir, cf)
         prompt_path = os.path.join(prompts_dir, f"{name}.txt")
-        case = _parse_case_txt(case_path)
+        case = parse_case_txt(case_path)
         prompts_raw: str = ""
         if os.path.isfile(prompt_path):
             with open(prompt_path, "r", encoding="utf-8") as f:

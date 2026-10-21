@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 
 from agent.tools.business_tools import load_mock_data
 
-from .bridge import coupon_for_level, map_fields, member_id_for_case, synthesize_purchase_history
+from .bridge import coupons_from_case, map_fields, member_id_for_case, synthesize_purchase_history
 
 logger = logging.getLogger("BackflowSeed")
 
@@ -46,11 +46,11 @@ def ensure_member(
     members[member_id] = member
 
     level = member["level"]
-    buckets = data.setdefault("coupons", {})
-    if coupons is not None:
-        buckets[level] = coupons
-    elif level not in buckets:
-        buckets[level] = coupon_for_level(level)
+    # 级别桶作兜底（保持与现有 mock 结构一致）
+    data.setdefault("coupons", {}).setdefault(level, coupons_from_case({"优惠券": ""}, level))
+    # 会员级券：优先取案例里真实写明的券，供 calc_best_coupon 使用
+    member_coupons = coupons if coupons is not None else coupons_from_case(case, level)
+    data.setdefault("member_coupons", {})[member_id] = member_coupons
 
     history = data.setdefault("purchase_history", {})
     if member_id not in history:

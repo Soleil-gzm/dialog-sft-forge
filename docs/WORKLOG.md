@@ -60,6 +60,17 @@
 - 零改盘：`git status` 确认 mock_data.json 无改动。
 - 用法：`python -m agent.eval.backflow.run_backflow --num N [--mock|(需 AGENT_API_KEY)] [--limit K]`。
 
+### M5 展示：Gradio「闭环评测」页
+
+- `demo/app.py` 改为双 Tab：`📊 数据生成`（原有内容）+ `🔁 闭环评测`。
+- Tab2 直接复用 Tab1 当前选中对话，四段展示：① 原始案例 → ② 回流 EvalCase（显式展示注入会员 BFxxxx）→ ③ ReAct 执行轨迹（思考/动作/observation 折叠）→ ④ 评分卡（总分、通过徽章、六项指标、LLM 质量分）。
+- 新增 `demo/loop_demo.py` 薄适配层（还原 case/prompt → 转换 → 注入 → run_single_case → HTML 渲染）。
+- `agent/eval/runner.py` 抽出 `build_runtime` / `run_single_case`（始终返回 trace），`run_eval` 复用后行为不变。
+- 修复两处回流质量问题：
+  1. 会员券改为按案例真实券注入（新增 `member_coupons`，`calc_best_coupon` 会员级优先），避免话术写「满20减5券」而工具返回「满40减10」。
+  2. `requires_knowledge=True` 时强制把 `search_knowledge_base` 纳入 expected_tools，`policy_citation` 不再恒为 0。
+- 验证：63 项测试通过；浏览器走通 Tab1 生成 → Tab2 运行，case_0001 注入 BF0001，六项指标中五项 1.0、效率 0.56，总分 0.9778 通过；`run_eval --mock` 仍 12/12；`mock_data.json` 零改动。
+
 ### 后续补充：评测接入 CI 回归门禁（同日）
 
 - 在 `.github/workflows/ci.yml` 新增「Eval regression - mock baseline (all pass)」步骤：跑 `agent/run_eval.py --mock` 到 `output/eval/ci/`，并用 python 解析最新 report.json 断言 `pass_rate == 1.0`（12/12），否则构建失败。

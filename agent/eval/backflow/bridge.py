@@ -88,7 +88,7 @@ def synthesize_purchase_history(case: Dict[str, Any], member_id: str) -> List[Di
 
 
 def coupon_for_level(level: str) -> List[Dict[str, Any]]:
-    """为回流会员等级生成一组券（运行时注入 coupons 桶，映射到现有类别）。"""
+    """为回流会员等级生成一组券（级别的默认券，用作兜底）。"""
     level = str(level or "").strip()
     if level == "VIP":
         return [
@@ -109,3 +109,20 @@ def coupon_for_level(level: str) -> List[Dict[str, Any]]:
         {"name": "满 20 减 5", "threshold": 20, "discount": 5},
         {"name": "第二杯半价", "threshold": 0, "discount": 0},
     ]
+
+
+def coupons_from_case(case: Dict[str, Any], level: str) -> List[Dict[str, Any]]:
+    """案例写明的券即该会员的真实持券，保证话术与 calc_best_coupon 返回一致。
+
+    案例未写券时，才回落到等级默认券池。
+    """
+    raw = str(case.get("优惠券") or "").strip()
+    if not raw:
+        return coupon_for_level(level)
+
+    m = re.search(r"满\s*(\d+)\s*减\s*(\d+)", raw)
+    if m:
+        return [{"name": raw, "threshold": int(m.group(1)), "discount": int(m.group(2))}]
+
+    # 非「满 X 减 Y」型券（如「第二杯半价券」「免配送费券」）：保留券名
+    return [{"name": raw, "threshold": 0, "discount": 0}]

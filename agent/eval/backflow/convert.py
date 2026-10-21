@@ -78,6 +78,10 @@ def derive_expected_tools(
     if requires_knowledge and "calc_best_coupon" not in tools and any(k in text for k in _ENV_LITERALS):
         tools.append("calc_best_coupon")
 
+    # 知识型用例必须真正检索知识库（metrics.policy_citation 要求 kb_called 且答复带出处）
+    if requires_knowledge and "search_knowledge_base" not in tools:
+        tools.append("search_knowledge_base")
+
     # 回访任务一律收尾 log_visit_result
     if "log_visit_result" not in tools:
         tools.append("log_visit_result")

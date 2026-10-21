@@ -8,6 +8,7 @@ import pytest
 
 from agent.eval.backflow.bridge import (
     coupon_for_level,
+    coupons_from_case,
     map_fields,
     member_id_for_case,
     synthesize_purchase_history,
@@ -105,6 +106,19 @@ def test_derive_expected_tools_knowledge_for_policy_q():
     prompt = "告知会员积分怎么抵扣现金"
     tools, rk = derive_expected_tools(case, prompt, [])
     assert rk is True
+    # 知识型用例必须要求检索知识库，否则 policy_citation 恒为 0
+    assert "search_knowledge_base" in tools
+    assert tools[-1] == "log_visit_result"
+
+
+def test_coupons_from_case_uses_case_coupon():
+    """案例写明的「满20减5券」应优先于等级默认券。"""
+    cs = coupons_from_case({"优惠券": "满20减5券"}, "银卡")
+    assert cs[0]["name"] == "满20减5券"
+    assert (cs[0]["threshold"], cs[0]["discount"]) == (20, 5)
+
+    cs2 = coupons_from_case({"优惠券": ""}, "银卡")
+    assert cs2 and cs2[0]["threshold"] > 0
 
 
 def test_messages_to_task_prefers_case_fields(case_0001):
@@ -138,6 +152,7 @@ def test_seed_ensure_member_idempotent_and_readable():
         case = {
             "客户姓名": "赵娟", "客户性别": "女士", "会员等级": "银卡",
             "积分余额": "757", "到期日期": "2027年5月2日", "消费金额": "49元",
+            "优惠券": "满20减5券",
         }
         # 依赖 agent.tools.business_tools.load_mock_data 缓存
         from agent.tools.business_tools import load_mock_data, _DATA_CACHE
@@ -147,10 +162,38 @@ def test_seed_ensure_member_idempotent_and_readable():
 
         data = load_mock_data(p)
         assert data["members"]["BF0001"]["points"] == 757
-        assert "银卡" in data["coupons"]  # 补了券桶
+        assert "银卡" in data["coupons"]  # 补了券商兜底桶
+        assert data["member_coupons"]["BF0001"][0]["name"] == "满20减5券"  # 案例券优先
         assert data["purchase_history"]["BF0001"]
 
         # 磁盘内容不被改动（注入只在内存态）
         on_disk = json.load(open(p, encoding="utf-8"))
         assert on_disk["members"] == {}
         _DATA_CACHE.pop(p, None)
+
+
+# ---------------- runner.run_single_case ----------------
+def test_run_single_case_mock_returns_trace(tmp_path):
+    """闭环展示依赖 run_single_case 始终返回 trace（run_eval 只在失败时保留）。"""
+    import shutil
+
+    from agent.core.config import load_agent_config
+    from agent.eval.runner import run_single_case
+    from agent.eval.backflow.seed import ensure_member
+
+    src = os.path.join(_PROJ, "agent", "data", "mock_data.json")
+    dst = tmp_path / "mock_data.json"
+    shutil.copyfile(src, dst)
+
+    config = load_agent_config(os.path.join(_PROJ, "agent", "config", "agent_config.yaml"))
+    config._data.setdefault("data", {})["mock_data_path"] = str(dst)
+    config._data["data"]["visit_log_path"] = str(tmp_path / "visit_log.jsonl")
+
+    case = _read_case_file("case_0001.txt")
+    ensure_member(str(dst), "BF0001", case)
+    ec = to_eval_case("BF0001_case_0001", "BF0001", case, _read_prompt("case_0001.txt"), [])
+
+    rec = run_single_case(config, ec, mock=True)
+    assert rec["case_id"] == "BF0001_case_0001"
+    assert rec["trace"], "应始终返回完整 trace"
+    assert rec["passed"] is True
